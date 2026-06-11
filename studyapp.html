@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillRoi — 学習投資対効果診断</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=Zen+Kaku+Gothic+New:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1612; --ink-2: #3d3630; --ink-3: #6b6059;
+    --paper: #faf6f0; --paper-2: #f2ece0; --paper-3: #e8dfd0;
+    --gold: #b08020; --gold-light: #d4a73a; --gold-bg: #fdf5e0;
+    --accent: #2e5c3e; --accent-bg: #edf5ef;
+    --border: rgba(80,60,40,0.15); --border-strong: rgba(80,60,40,0.3);
+    --radius: 4px; --radius-lg: 8px;
+    --shadow-sm: 0 1px 3px rgba(26,22,18,0.08);
+    --shadow: 0 4px 16px rgba(26,22,18,0.12);
+    --shadow-lg: 0 12px 40px rgba(26,22,18,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Zen Kaku Gothic New', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: repeating-linear-gradient(90deg, transparent, transparent 120px, rgba(160,130,80,0.02) 120px, rgba(160,130,80,0.02) 121px), repeating-linear-gradient(0deg, transparent, transparent 120px, rgba(160,130,80,0.02) 120px, rgba(160,130,80,0.02) 121px); pointer-events: none; z-index: 0; }
+
+  header { position: relative; z-index: 10; padding: 0 2rem; border-bottom: 1px solid var(--border); background: var(--paper); }
+  .header-inner { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .logo { display: flex; align-items: baseline; gap: 8px; text-decoration: none; }
+  .logo-mark { font-family: 'Noto Serif JP', serif; font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: -0.5px; }
+  .logo-mark span { color: var(--gold); }
+  .logo-sub { font-size: 11px; color: var(--ink-3); letter-spacing: 0.05em; }
+  .badge { font-size: 10px; padding: 3px 8px; border-radius: 20px; letter-spacing: 0.04em; }
+  .badge-gold { background: var(--gold-bg); color: var(--gold); border: 1px solid rgba(176,128,32,0.3); }
+
+  main { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+
+  .hero { text-align: center; margin-bottom: 4rem; padding: 3rem 0; position: relative; }
+  .hero::before { content: '学'; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-family: 'Noto Serif JP', serif; font-size: 240px; font-weight: 700; color: rgba(176,128,32,0.04); pointer-events: none; user-select: none; line-height: 1; }
+  .hero-eyebrow { font-size: 11px; letter-spacing: 0.15em; color: var(--gold); text-transform: uppercase; margin-bottom: 1rem; }
+  .hero-title { font-family: 'Noto Serif JP', serif; font-size: clamp(28px,5vw,48px); font-weight: 700; color: var(--ink); line-height: 1.3; margin-bottom: 1.25rem; }
+  .hero-title em { font-style: normal; color: var(--gold); }
+  .hero-sub { font-size: 15px; color: var(--ink-3); line-height: 1.8; max-width: 520px; margin: 0 auto; }
+
+  .stepper { display: flex; align-items: center; justify-content: center; margin-bottom: 3rem; }
+  .step-item { display: flex; align-items: center; gap: 8px; }
+  .step-dot { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--ink-3); transition: all 0.3s; background: var(--paper); }
+  .step-dot.active { border-color: var(--gold); background: var(--gold); color: white; }
+  .step-dot.done { border-color: var(--accent); background: var(--accent); color: white; }
+  .step-label { font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+  .step-label.active { color: var(--ink); font-weight: 700; }
+  .step-line { width: 48px; height: 1px; background: var(--border); margin: 0 4px; }
+
+  .form-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 2.5rem; margin-bottom: 2rem; display: none; animation: slideUp 0.4s ease; }
+  .form-card.active { display: block; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .form-card-title { font-family: 'Noto Serif JP', serif; font-size: 20px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+  .form-card-desc { font-size: 13px; color: var(--ink-3); margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 12px; font-weight: 700; color: var(--ink-2); letter-spacing: 0.04em; }
+  label .req { color: var(--gold); margin-left: 2px; }
+  input[type="text"], input[type="number"], select, textarea { padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius); font-family: 'Zen Kaku Gothic New', sans-serif; font-size: 14px; color: var(--ink); background: var(--paper); transition: border-color 0.2s, box-shadow 0.2s; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(176,128,32,0.1); background: white; }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+
+  .slider-group { display: flex; flex-direction: column; gap: 8px; }
+  .slider-header { display: flex; justify-content: space-between; align-items: center; }
+  .slider-val { font-family: 'Noto Serif JP', serif; font-size: 18px; font-weight: 700; color: var(--gold); }
+  input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; background: var(--paper-3); outline: none; cursor: pointer; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--gold); cursor: pointer; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
+
+  .check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+  .check-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all 0.2s; background: var(--paper); }
+  .check-item:hover, .check-item.selected { border-color: var(--gold); background: var(--gold-bg); }
+  .check-item input[type="checkbox"] { accent-color: var(--gold); width: 14px; height: 14px; cursor: pointer; }
+  .check-label { font-size: 12px; color: var(--ink-2); user-select: none; }
+
+  .form-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+  .btn { padding: 10px 24px; border-radius: var(--radius); font-family: 'Zen Kaku Gothic New', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; border: none; letter-spacing: 0.04em; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border-strong); color: var(--ink-2); }
+  .btn-ghost:hover { background: var(--paper-2); }
+  .btn-primary { background: var(--ink); color: white; }
+  .btn-primary:hover { background: var(--ink-2); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  .btn-gold { background: var(--gold); color: white; padding: 12px 32px; }
+  .btn-gold:hover { background: var(--gold-light); transform: translateY(-1px); box-shadow: var(--shadow); }
+
+  .loading-overlay { display: none; text-align: center; padding: 4rem 2rem; }
+  .loading-overlay.active { display: block; animation: fadeIn 0.3s; }
+  .loading-kanji { font-family: 'Noto Serif JP', serif; font-size: 60px; font-weight: 700; color: var(--gold); animation: pulse 1.5s infinite; display: block; margin-bottom: 1rem; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.95)} }
+  .loading-text { font-size: 14px; color: var(--ink-3); }
+
+  #results { display: none; animation: slideUp 0.5s ease; }
+  #results.active { display: block; }
+
+  .results-hero { background: var(--ink); border-radius: var(--radius-lg); padding: 2.5rem; color: white; margin-bottom: 2rem; position: relative; overflow: hidden; }
+  .results-hero::before { content: '診'; position: absolute; right: -20px; bottom: -20px; font-family: 'Noto Serif JP', serif; font-size: 160px; font-weight: 700; color: rgba(255,255,255,0.03); line-height: 1; }
+  .results-hero-grid { display: grid; grid-template-columns: 1fr auto; gap: 2rem; align-items: center; }
+  .results-greeting { font-size: 13px; color: rgba(255,255,255,0.5); letter-spacing: 0.08em; margin-bottom: 6px; }
+  .results-name { font-family: 'Noto Serif JP', serif; font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .results-name span { color: var(--gold-light); }
+  .results-summary { font-size: 14px; color: rgba(255,255,255,0.7); line-height: 1.7; }
+  .opportunity-cost-box { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius); padding: 1.5rem; text-align: center; min-width: 180px; }
+  .oc-label { font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 0.12em; margin-bottom: 6px; }
+  .oc-value { font-family: 'Noto Serif JP', serif; font-size: 28px; font-weight: 700; color: var(--gold-light); line-height: 1; margin-bottom: 4px; }
+  .oc-sub { font-size: 11px; color: rgba(255,255,255,0.4); }
+
+  .roi-bar-section { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 2rem; }
+  .roi-bar-title { font-size: 13px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.06em; margin-bottom: 1.5rem; }
+  .roi-bar-item { margin-bottom: 1.25rem; }
+  .roi-bar-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
+  .roi-bar-name { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+  .roi-bar-score { font-family: 'Noto Serif JP', serif; font-size: 13px; font-weight: 700; color: var(--gold); }
+  .roi-track { height: 6px; background: var(--paper-2); border-radius: 3px; overflow: hidden; }
+  .roi-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--gold), var(--gold-light)); transition: width 1s cubic-bezier(0.16,1,0.3,1); }
+
+  .certs-section { margin-bottom: 2rem; }
+  .section-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 1.5rem; }
+  .section-title { font-family: 'Noto Serif JP', serif; font-size: 20px; font-weight: 700; color: var(--ink); }
+  .section-count { font-size: 12px; color: var(--ink-3); }
+  .certs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+
+  .cert-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; transition: all 0.25s; display: flex; flex-direction: column; }
+  .cert-card:hover { border-color: var(--gold); box-shadow: var(--shadow); transform: translateY(-2px); }
+  .cert-card.recommended { border-color: var(--gold); border-width: 2px; }
+  .cert-card-top { padding: 1.25rem 1.25rem 1rem; border-bottom: 1px solid var(--border); position: relative; }
+  .cert-rank { position: absolute; top: 1rem; right: 1rem; font-family: 'Noto Serif JP', serif; font-size: 28px; font-weight: 700; color: var(--paper-3); line-height: 1; user-select: none; }
+  .recommended .cert-rank { color: rgba(176,128,32,0.15); }
+  .cert-category { font-size: 10px; letter-spacing: 0.1em; color: var(--ink-3); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .rec-badge { background: var(--gold-bg); color: var(--gold); border: 1px solid rgba(176,128,32,0.3); font-size: 9px; padding: 1px 6px; border-radius: 20px; font-weight: 700; }
+  .cert-name { font-family: 'Noto Serif JP', serif; font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 4px; padding-right: 32px; }
+  .cert-org { font-size: 12px; color: var(--ink-3); }
+  .cert-card-body { padding: 1rem 1.25rem; flex: 1; }
+  .cert-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+  .cert-metric { background: var(--paper); border-radius: var(--radius); padding: 8px 10px; }
+  .cert-metric-label { font-size: 9px; color: var(--ink-3); letter-spacing: 0.06em; margin-bottom: 2px; }
+  .cert-metric-val { font-family: 'Noto Serif JP', serif; font-size: 15px; font-weight: 700; color: var(--ink); }
+  .cert-metric-val.gold { color: var(--gold); }
+  .cert-metric-val.green { color: var(--accent); }
+  .cert-roi-bar { margin-bottom: 1rem; }
+  .cert-roi-header { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .cert-roi-label { font-size: 10px; color: var(--ink-3); }
+  .cert-roi-score { font-size: 10px; font-weight: 700; color: var(--gold); }
+  .cert-roi-track { height: 3px; background: var(--paper-2); border-radius: 2px; overflow: hidden; }
+  .cert-roi-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--gold), var(--gold-light)); }
+  .cert-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .cert-tag { font-size: 10px; padding: 2px 8px; border-radius: 20px; background: var(--paper-2); color: var(--ink-3); border: 1px solid var(--border); }
+
+  .oc-section { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 2rem; }
+  .oc-formula { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 1.5rem 0; padding: 1.5rem; background: var(--paper); border-radius: var(--radius); }
+  .formula-box { background: white; border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 10px 14px; text-align: center; min-width: 120px; }
+  .formula-label { font-size: 9px; color: var(--ink-3); letter-spacing: 0.08em; margin-bottom: 4px; }
+  .formula-val { font-family: 'Noto Serif JP', serif; font-size: 16px; font-weight: 700; color: var(--ink); }
+  .formula-result { background: var(--ink); color: white; border-color: var(--ink); }
+  .formula-result .formula-label { color: rgba(255,255,255,0.4); }
+  .formula-result .formula-val { color: var(--gold-light); }
+  .formula-op { font-size: 20px; color: var(--ink-3); font-weight: 300; }
+  .oc-insight { padding: 1rem 1.25rem; border-left: 3px solid var(--gold); background: var(--gold-bg); border-radius: 0 var(--radius) var(--radius) 0; font-size: 13px; color: var(--ink-2); line-height: 1.7; }
+
+  footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; }
+  .footer-text { font-size: 12px; color: var(--ink-3); }
+
+  .python-section { margin-top: 4rem; border-top: 2px solid var(--border); padding-top: 3rem; }
+  .python-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; }
+  .python-badge { background: #1e3a5f; color: #ffd43b; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 3px; letter-spacing: 0.06em; }
+  .python-title { font-family: 'Noto Serif JP', serif; font-size: 22px; font-weight: 700; color: var(--ink); }
+  .python-desc { font-size: 14px; color: var(--ink-3); line-height: 1.8; margin-bottom: 2rem; max-width: 640px; }
+  .code-block-wrap { position: relative; margin-bottom: 1.5rem; }
+  .code-label { font-size: 10px; letter-spacing: 0.1em; color: var(--ink-3); padding: 6px 12px; background: var(--paper-2); border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius) var(--radius) 0 0; display: inline-block; }
+  .copy-btn { position: absolute; top: 6px; right: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.5); font-size: 11px; padding: 3px 10px; border-radius: 3px; cursor: pointer; font-family: 'Zen Kaku Gothic New', sans-serif; transition: all 0.2s; }
+  .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+  pre { margin: 0; border: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) var(--radius); background: #1a1612; padding: 1.5rem; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 12.5px; line-height: 1.7; color: #e8dfd0; }
+  .kw{color:#ffd43b}.fn{color:#74c0fc}.st{color:#b2f2bb}.cm{color:#6b6059;font-style:italic}.nu{color:#f8a8c8}.de{color:#ffa94d}
+
+  @media (max-width: 640px) {
+    main { padding: 2rem 1rem 4rem; }
+    .results-hero-grid { grid-template-columns: 1fr; }
+    .opportunity-cost-box { min-width: unset; }
+    .hero::before { font-size: 160px; }
+    .form-card { padding: 1.5rem; }
+    .step-line { width: 24px; }
+    .step-label { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="#" class="logo" onclick="return false">
+      <span class="logo-mark">Skill<span>Roi</span></span>
+      <span class="logo-sub">学習投資対効果診断</span>
+    </a>
+    <span class="badge badge-gold">無料・即時診断</span>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <p class="hero-eyebrow">Learning ROI Calculator</p>
+    <h1 class="hero-title">あなたの学習時間に<br><em>本当の価値</em>はあるか</h1>
+    <p class="hero-sub">学習時間を機会費用として換算し、あなたのプロフィールに最適化した資格取得ルートと投資対効果を算出します。</p>
+  </div>
+
+  <div class="stepper" id="stepper">
+    <div class="step-item">
+      <div class="step-dot active" id="dot-1">1</div>
+      <span class="step-label active" id="lbl-1">基本情報</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item">
+      <div class="step-dot" id="dot-2">2</div>
+      <span class="step-label" id="lbl-2">現在の状況</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item">
+      <div class="step-dot" id="dot-3">3</div>
+      <span class="step-label" id="lbl-3">希望と目標</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item">
+      <div class="step-dot" id="dot-4">4</div>
+      <span class="step-label" id="lbl-4">診断結果</span>
+    </div>
+  </div>
+
+  <!-- Step 1 -->
+  <div class="form-card active" id="step1">
+    <h2 class="form-card-title">基本情報を入力してください</h2>
+    <p class="form-card-desc">あなたのプロフィールをもとに、最適な資格を算出します。</p>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>お名前 <span class="req">*</span></label>
+        <input type="text" id="name" placeholder="例：山田 太郎">
+      </div>
+      <div class="form-group">
+        <label>年齢 <span class="req">*</span></label>
+        <input type="number" id="age" placeholder="例：28" min="18" max="70">
+      </div>
+      <div class="form-group">
+        <label>性別</label>
+        <select id="gender">
+          <option value="">選択してください</option>
+          <option value="male">男性</option>
+          <option value="female">女性</option>
+          <option value="other">その他</option>
+          <option value="none">回答しない</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>最終学歴 <span class="req">*</span></label>
+        <select id="education">
+          <option value="">選択してください</option>
+          <option value="juniorhigh">中学卒</option>
+          <option value="highschool">高校卒</option>
+          <option value="vocational">専門学校卒</option>
+          <option value="junior">短大・高専卒</option>
+          <option value="bachelor">大学卒（学士）</option>
+          <option value="master">大学院卒（修士・博士）</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>居住地域</label>
+        <select id="region">
+          <option value="">選択してください</option>
+          <optgroup label="北海道・東北">
+            <option value="hokkaido">北海道</option>
+            <option value="aomori">青森県</option>
+            <option value="iwate">岩手県</option>
+            <option value="miyagi">宮城県</option>
+            <option value="akita">秋田県</option>
+            <option value="yamagata">山形県</option>
+            <option value="fukushima">福島県</option>
+          </optgroup>
+          <optgroup label="関東">
+            <option value="ibaraki">茨城県</option>
+            <option value="tochigi">栃木県</option>
+            <option value="gunma">群馬県</option>
+            <option value="saitama">埼玉県</option>
+            <option value="chiba">千葉県</option>
+            <option value="tokyo">東京都</option>
+            <option value="kanagawa">神奈川県</option>
+          </optgroup>
+          <optgroup label="中部">
+            <option value="niigata">新潟県</option>
+            <option value="toyama">富山県</option>
+            <option value="ishikawa">石川県</option>
+            <option value="fukui">福井県</option>
+            <option value="yamanashi">山梨県</option>
+            <option value="nagano">長野県</option>
+            <option value="gifu">岐阜県</option>
+            <option value="shizuoka">静岡県</option>
+            <option value="aichi">愛知県</option>
+          </optgroup>
+          <optgroup label="近畿">
+            <option value="mie">三重県</option>
+            <option value="shiga">滋賀県</option>
+            <option value="kyoto">京都府</option>
+            <option value="osaka">大阪府</option>
+            <option value="hyogo">兵庫県</option>
+            <option value="nara">奈良県</option>
+            <option value="wakayama">和歌山県</option>
+          </optgroup>
+          <optgroup label="中国・四国">
+            <option value="tottori">鳥取県</option>
+            <option value="shimane">島根県</option>
+            <option value="okayama">岡山県</option>
+            <option value="hiroshima">広島県</option>
+            <option value="yamaguchi">山口県</option>
+            <option value="tokushima">徳島県</option>
+            <option value="kagawa">香川県</option>
+            <option value="ehime">愛媛県</option>
+            <option value="kochi">高知県</option>
+          </optgroup>
+          <optgroup label="九州・沖縄">
+            <option value="fukuoka">福岡県</option>
+            <option value="saga">佐賀県</option>
+            <option value="nagasaki">長崎県</option>
+            <option value="kumamoto">熊本県</option>
+            <option value="oita">大分県</option>
+            <option value="miyazaki">宮崎県</option>
+            <option value="kagoshima">鹿児島県</option>
+            <option value="okinawa">沖縄県</option>
+          </optgroup>
+          <option value="overseas">海外</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-nav">
+      <span></span>
+      <button class="btn btn-primary" onclick="nextStep(1)">次へ →</button>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="form-card" id="step2">
+    <h2 class="form-card-title">現在の就業状況・収入</h2>
+    <p class="form-card-desc">機会費用の算出に使用します。正確に入力すると診断精度が向上します。</p>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>雇用形態 <span class="req">*</span></label>
+        <select id="employment">
+          <option value="">選択してください</option>
+          <option value="fulltime">正社員</option>
+          <option value="contract">契約・派遣社員</option>
+          <option value="parttime">パート・アルバイト</option>
+          <option value="freelance">フリーランス</option>
+          <option value="selfemployed">自営業・経営者</option>
+          <option value="student">学生</option>
+          <option value="unemployed">求職中</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>現在の職種</label>
+        <select id="job">
+          <option value="">選択してください</option>
+          <option value="it">IT・システム</option>
+          <option value="finance">金融・会計</option>
+          <option value="sales">営業・販売</option>
+          <option value="hr">人事・総務</option>
+          <option value="marketing">マーケティング</option>
+          <option value="engineering">製造・エンジニアリング</option>
+          <option value="medical">医療・福祉</option>
+          <option value="education">教育・研究</option>
+          <option value="other">その他</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <div class="slider-group">
+          <div class="slider-header">
+            <label>現在の年収（万円）<span class="req">*</span></label>
+            <span class="slider-val" id="income-val">450</span>
+          </div>
+          <input type="range" id="income" min="100" max="2000" value="450" step="10"
+            oninput="document.getElementById('income-val').textContent=this.value">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--ink-3)">
+            <span>100万</span><span>1,000万</span><span>2,000万</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group full">
+        <div class="slider-group">
+          <div class="slider-header">
+            <label>週の学習可能時間（時間/週）<span class="req">*</span></label>
+            <span class="slider-val" id="hours-val">10</span>
+          </div>
+          <input type="range" id="study_hours" min="1" max="40" value="10" step="1"
+            oninput="document.getElementById('hours-val').textContent=this.value">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--ink-3)">
+            <span>1時間</span><span>20時間</span><span>40時間</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>学習予算（万円/月）</label>
+        <select id="budget">
+          <option value="0">なし（完全無料のみ）</option>
+          <option value="1">〜1万円</option>
+          <option value="3" selected>〜3万円</option>
+          <option value="5">〜5万円</option>
+          <option value="10">〜10万円</option>
+          <option value="30">〜30万円</option>
+          <option value="100">制限なし</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>希望学習期間</label>
+        <select id="period">
+          <option value="3">3ヶ月以内</option>
+          <option value="6" selected>6ヶ月以内</option>
+          <option value="12">1年以内</option>
+          <option value="24">2年以内</option>
+          <option value="0">期間を問わない</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-nav">
+      <button class="btn btn-ghost" onclick="prevStep(2)">← 戻る</button>
+      <button class="btn btn-primary" onclick="nextStep(2)">次へ →</button>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="form-card" id="step3">
+    <h2 class="form-card-title">将来の希望・目標</h2>
+    <p class="form-card-desc">あなたのキャリアビジョンに合わせた資格を選定します。</p>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>希望の変化 <span class="req">*</span></label>
+        <select id="goal_type">
+          <option value="">選択してください</option>
+          <option value="promotion">現職での昇進・昇給</option>
+          <option value="change">業種・職種の転換</option>
+          <option value="independent">独立・フリーランス化</option>
+          <option value="startup">起業・スタートアップ</option>
+          <option value="overseas">海外就労・移住</option>
+          <option value="stability">安定・セカンドキャリア</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>目標年収（万円）</label>
+        <div class="slider-group">
+          <div class="slider-header" style="margin-bottom:4px">
+            <span style="font-size:11px;color:var(--ink-3)">目標</span>
+            <span class="slider-val" id="target-val">700</span>
+          </div>
+          <input type="range" id="target_income" min="200" max="3000" value="700" step="50"
+            oninput="document.getElementById('target-val').textContent=this.value">
+        </div>
+      </div>
+      <div class="form-group full">
+        <label>興味のある分野（複数選択可）</label>
+        <div class="check-grid" id="interests">
+          <label class="check-item"><input type="checkbox" value="IT" onchange="toggleCheck(this)"> <span class="check-label">IT・デジタル</span></label>
+          <label class="check-item"><input type="checkbox" value="finance" onchange="toggleCheck(this)"> <span class="check-label">金融・会計</span></label>
+          <label class="check-item"><input type="checkbox" value="business" onchange="toggleCheck(this)"> <span class="check-label">経営・MBA</span></label>
+          <label class="check-item"><input type="checkbox" value="legal" onchange="toggleCheck(this)"> <span class="check-label">法律・コンプライアンス</span></label>
+          <label class="check-item"><input type="checkbox" value="hr" onchange="toggleCheck(this)"> <span class="check-label">人事・労務</span></label>
+          <label class="check-item"><input type="checkbox" value="marketing" onchange="toggleCheck(this)"> <span class="check-label">マーケティング</span></label>
+          <label class="check-item"><input type="checkbox" value="data" onchange="toggleCheck(this)"> <span class="check-label">データ・AI</span></label>
+          <label class="check-item"><input type="checkbox" value="project" onchange="toggleCheck(this)"> <span class="check-label">プロジェクト管理</span></label>
+          <label class="check-item"><input type="checkbox" value="language" onchange="toggleCheck(this)"> <span class="check-label">語学・TOEIC</span></label>
+          <label class="check-item"><input type="checkbox" value="welfare" onchange="toggleCheck(this)"> <span class="check-label">福祉・介護</span></label>
+          <label class="check-item"><input type="checkbox" value="real_estate" onchange="toggleCheck(this)"> <span class="check-label">不動産・建築</span></label>
+          <label class="check-item"><input type="checkbox" value="medical" onchange="toggleCheck(this)"> <span class="check-label">医療・健康</span></label>
+        </div>
+      </div>
+      <div class="form-group full">
+        <label>その他、ご要望・状況を自由にお書きください</label>
+        <textarea id="free_text" placeholder="例：現在はSEとして勤務。将来的にはPMとしてキャリアアップしたい。副業も視野に入れています。"></textarea>
+      </div>
+    </div>
+    <div class="form-nav">
+      <button class="btn btn-ghost" onclick="prevStep(3)">← 戻る</button>
+      <button class="btn btn-gold" onclick="diagnose()">ROI診断を開始する</button>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loading">
+    <span class="loading-kanji" id="loading-kanji">算</span>
+    <p class="loading-text" id="loading-text">機会費用を計算中...</p>
+  </div>
+
+  <!-- 結果 -->
+  <div id="results">
+    <div class="results-hero">
+      <div class="results-hero-grid">
+        <div>
+          <p class="results-greeting">PERSONALIZED DIAGNOSIS RESULT</p>
+          <h2 class="results-name"><span id="res-name">山田 太郎</span>さんへの推奨プラン</h2>
+          <p class="results-summary" id="res-summary"></p>
+        </div>
+        <div class="opportunity-cost-box">
+          <p class="oc-label">1時間あたり機会費用</p>
+          <p class="oc-value" id="res-hourly">¥2,163</p>
+          <p class="oc-sub">年収÷2080時間</p>
+        </div>
+      </div>
+    </div>
+    <div class="roi-bar-section">
+      <p class="roi-bar-title">ROI FACTOR ANALYSIS</p>
+      <div id="roi-bars"></div>
+    </div>
+    <div class="oc-section">
+      <h3 class="section-title" style="margin-bottom:1rem">機会費用の内訳</h3>
+      <div class="oc-formula" id="oc-formula"></div>
+      <div class="oc-insight" id="oc-insight"></div>
+    </div>
+    <div class="certs-section">
+      <div class="section-header">
+        <h3 class="section-title">おすすめ資格ランキング</h3>
+        <span class="section-count" id="cert-count"></span>
+      </div>
+      <div class="certs-grid" id="certs-grid"></div>
+    </div>
+    <div style="text-align:center;margin-top:2rem">
+      <button class="btn btn-ghost" onclick="resetDiagnosis()">← もう一度診断する</button>
+    </div>
+  </div>
+
+  <!-- Python コードセクション -->
+  <div class="python-section" style="display:none">
+    <div class="python-header">
+      <span class="python-badge">PYTHON</span>
+      <h2 class="python-title">Pythonによる実装コード</h2>
+    </div>
+    <p class="python-desc">
+      このサービスと同等のロジックを<strong>1ファイルで動作する</strong>Pythonスクリプトとして実装したものです。
+      標準ライブラリのみ使用。<code style="font-family:monospace;font-size:13px">python skill_roi.py</code> で即座に実行できます。
+    </p>
+
+    <div class="code-block-wrap">
+      <span class="code-label">skill_roi.py - 実行可能な完全版（標準ライブラリのみ）</span>
+      <button class="copy-btn" onclick="copyCode('code-main')">コピー</button>
+<pre id="code-main"><span class="cm">#!/usr/bin/env python3
+# skill_roi.py
+# 学習ROI診断ツール - 標準ライブラリのみ、1ファイルで動作
+# 使い方: python skill_roi.py
+</span>
+<span class="kw">from</span> dataclasses <span class="kw">import</span> dataclass, field
+<span class="kw">from</span> typing      <span class="kw">import</span> List, Optional
+<span class="kw">from</span> enum        <span class="kw">import</span> Enum
+<span class="kw">import</span> math
+
+
+<span class="cm"># -------------------------------------------------
+# 1. Enum / データクラス定義
+# -------------------------------------------------</span>
+
+<span class="kw">class</span> <span class="de">GoalType</span>(Enum):
+    PROMOTION     = <span class="st">"promotion"</span>   <span class="cm"># 現職での昇進・昇給</span>
+    CAREER_CHANGE = <span class="st">"change"</span>      <span class="cm"># 業種・職種の転換</span>
+    INDEPENDENT   = <span class="st">"independent"</span> <span class="cm"># 独立・フリーランス化</span>
+    STARTUP       = <span class="st">"startup"</span>     <span class="cm"># 起業・スタートアップ</span>
+    OVERSEAS      = <span class="st">"overseas"</span>    <span class="cm"># 海外就労・移住</span>
+    STABILITY     = <span class="st">"stability"</span>   <span class="cm"># 安定・セカンドキャリア</span>
+
+
+<span class="de">@dataclass</span>
+<span class="kw">class</span> <span class="de">UserProfile</span>:
+    <span class="st">"""ユーザーの入力情報"""</span>
+    name:                 str
+    age:                  <span class="fn">int</span>
+    annual_income:        <span class="fn">int</span>         <span class="cm"># 万円</span>
+    study_hours_per_week: <span class="fn">float</span>
+    goal_type:            GoalType
+    target_income:        <span class="fn">int</span>         <span class="cm"># 万円</span>
+    interests:            List[str]    = field(default_factory=<span class="fn">list</span>)
+    monthly_budget:       <span class="fn">int</span>         = <span class="nu">3</span>    <span class="cm"># 万円/月</span>
+    study_months:         <span class="fn">int</span>         = <span class="nu">6</span>    <span class="cm"># 希望学習期間</span>
+
+
+<span class="de">@dataclass</span>
+<span class="kw">class</span> <span class="de">Certification</span>:
+    <span class="st">"""資格マスターデータ"""</span>
+    id:                   str
+    name:                 str
+    org:                  str
+    category:             str
+    tags:                 List[str]
+    study_hours_required: <span class="fn">int</span>         <span class="cm"># 合格に必要な総学習時間</span>
+    cost:                 <span class="fn">int</span>         <span class="cm"># 受験費用（円）</span>
+    avg_salary_increase:  <span class="fn">float</span>       <span class="cm"># 平均年収増加率</span>
+    demand_score:         <span class="fn">float</span>       <span class="cm"># 市場需要スコア 0-100</span>
+    difficulty:           <span class="fn">int</span>         <span class="cm"># 難易度 1-5</span>
+    goal_match:           List[str]    <span class="cm"># 対応ゴールタイプ</span>
+    interest_match:       List[str]    <span class="cm"># 対応興味分野</span>
+
+
+<span class="de">@dataclass</span>
+<span class="kw">class</span> <span class="de">OpportunityCost</span>:
+    <span class="st">"""機会費用・ROI の計算結果"""</span>
+    hourly_rate:          <span class="fn">float</span>       <span class="cm"># 時給換算（円）</span>
+    total_study_cost:     <span class="fn">float</span>       <span class="cm"># 学習時間の機会費用（円）</span>
+    exam_cost:            <span class="fn">int</span>         <span class="cm"># 受験・教材費（円）</span>
+    total_investment:     <span class="fn">float</span>       <span class="cm"># 総投資額（円）</span>
+    expected_annual_gain: <span class="fn">float</span>       <span class="cm"># 期待年収増加額（円/年）</span>
+    payback_months:       <span class="fn">float</span>       <span class="cm"># 投資回収期間（月）</span>
+    roi_score:            <span class="fn">float</span>       <span class="cm"># ROIスコア 0-100</span>
+    time_to_complete:     <span class="fn">float</span>       <span class="cm"># 完了までの月数</span>
+
+
+<span class="cm"># -------------------------------------------------
+# 2. 資格マスターデータベース
+# -------------------------------------------------</span>
+
+CERTIFICATIONS: List[Certification] = [
+    Certification(
+        id=<span class="st">"aws-saa"</span>, name=<span class="st">"AWS認定 ソリューションアーキテクト"</span>,
+        org=<span class="st">"Amazon Web Services"</span>, category=<span class="st">"IT・クラウド"</span>,
+        tags=[<span class="st">"クラウド"</span>, <span class="st">"インフラ"</span>, <span class="st">"設計"</span>],
+        study_hours_required=<span class="nu">200</span>, cost=<span class="nu">30_000</span>,
+        avg_salary_increase=<span class="nu">0.15</span>, demand_score=<span class="nu">92</span>, difficulty=<span class="nu">3</span>,
+        goal_match=[<span class="st">"promotion"</span>, <span class="st">"change"</span>, <span class="st">"independent"</span>],
+        interest_match=[<span class="st">"IT"</span>, <span class="st">"data"</span>],
+    ),
+    Certification(
+        id=<span class="st">"fp2"</span>, name=<span class="st">"FP2級（ファイナンシャルプランナー）"</span>,
+        org=<span class="st">"日本FP協会"</span>, category=<span class="st">"金融・資産"</span>,
+        tags=[<span class="st">"資産運用"</span>, <span class="st">"保険"</span>, <span class="st">"税金"</span>],
+        study_hours_required=<span class="nu">150</span>, cost=<span class="nu">8_700</span>,
+        avg_salary_increase=<span class="nu">0.08</span>, demand_score=<span class="nu">78</span>, difficulty=<span class="nu">2</span>,
+        goal_match=[<span class="st">"promotion"</span>, <span class="st">"stability"</span>, <span class="st">"independent"</span>],
+        interest_match=[<span class="st">"finance"</span>, <span class="st">"business"</span>],
+    ),
+    Certification(
+        id=<span class="st">"sharoushi"</span>, name=<span class="st">"社会保険労務士（社労士）"</span>,
+        org=<span class="st">"全国社会保険労務士会連合会"</span>, category=<span class="st">"法律・人事"</span>,
+        tags=[<span class="st">"労務"</span>, <span class="st">"年金"</span>, <span class="st">"社会保険"</span>],
+        study_hours_required=<span class="nu">800</span>, cost=<span class="nu">15_000</span>,
+        avg_salary_increase=<span class="nu">0.25</span>, demand_score=<span class="nu">70</span>, difficulty=<span class="nu">5</span>,
+        goal_match=[<span class="st">"independent"</span>, <span class="st">"change"</span>, <span class="st">"startup"</span>],
+        interest_match=[<span class="st">"hr"</span>, <span class="st">"legal"</span>],
+    ),
+    Certification(
+        id=<span class="st">"pmp"</span>, name=<span class="st">"PMP（プロジェクトマネジメント）"</span>,
+        org=<span class="st">"PMI"</span>, category=<span class="st">"マネジメント"</span>,
+        tags=[<span class="st">"PM"</span>, <span class="st">"アジャイル"</span>, <span class="st">"スクラム"</span>],
+        study_hours_required=<span class="nu">300</span>, cost=<span class="nu">55_000</span>,
+        avg_salary_increase=<span class="nu">0.20</span>, demand_score=<span class="nu">88</span>, difficulty=<span class="nu">4</span>,
+        goal_match=[<span class="st">"promotion"</span>, <span class="st">"change"</span>, <span class="st">"overseas"</span>],
+        interest_match=[<span class="st">"project"</span>, <span class="st">"business"</span>, <span class="st">"IT"</span>],
+    ),
+    Certification(
+        id=<span class="st">"toeic"</span>, name=<span class="st">"TOEIC(R) 900点突破"</span>,
+        org=<span class="st">"国際ビジネスコミュニケーション協会"</span>, category=<span class="st">"語学"</span>,
+        tags=[<span class="st">"英語"</span>, <span class="st">"グローバル"</span>, <span class="st">"ビジネス英語"</span>],
+        study_hours_required=<span class="nu">400</span>, cost=<span class="nu">7_810</span>,
+        avg_salary_increase=<span class="nu">0.10</span>, demand_score=<span class="nu">82</span>, difficulty=<span class="nu">3</span>,
+        goal_match=[<span class="st">"overseas"</span>, <span class="st">"promotion"</span>, <span class="st">"change"</span>],
+        interest_match=[<span class="st">"language"</span>, <span class="st">"business"</span>],
+    ),
+    Certification(
+        id=<span class="st">"chusho"</span>, name=<span class="st">"中小企業診断士"</span>,
+        org=<span class="st">"中小企業診断士協会"</span>, category=<span class="st">"経営・コンサル"</span>,
+        tags=[<span class="st">"経営"</span>, <span class="st">"コンサル"</span>, <span class="st">"財務"</span>],
+        study_hours_required=<span class="nu">1000</span>, cost=<span class="nu">17_200</span>,
+        avg_salary_increase=<span class="nu">0.30</span>, demand_score=<span class="nu">75</span>, difficulty=<span class="nu">5</span>,
+        goal_match=[<span class="st">"startup"</span>, <span class="st">"independent"</span>, <span class="st">"promotion"</span>],
+        interest_match=[<span class="st">"business"</span>, <span class="st">"finance"</span>, <span class="st">"marketing"</span>],
+    ),
+    Certification(
+        id=<span class="st">"ga4"</span>, name=<span class="st">"Googleアナリティクス認定（GA4）"</span>,
+        org=<span class="st">"Google"</span>, category=<span class="st">"デジタルマーケ"</span>,
+        tags=[<span class="st">"分析"</span>, <span class="st">"Web"</span>, <span class="st">"データ"</span>],
+        study_hours_required=<span class="nu">40</span>, cost=<span class="nu">0</span>,
+        avg_salary_increase=<span class="nu">0.06</span>, demand_score=<span class="nu">80</span>, difficulty=<span class="nu">1</span>,
+        goal_match=[<span class="st">"promotion"</span>, <span class="st">"change"</span>, <span class="st">"independent"</span>],
+        interest_match=[<span class="st">"marketing"</span>, <span class="st">"data"</span>, <span class="st">"IT"</span>],
+    ),
+    Certification(
+        id=<span class="st">"ap"</span>, name=<span class="st">"応用情報技術者試験（AP）"</span>,
+        org=<span class="st">"IPA"</span>, category=<span class="st">"IT国家資格"</span>,
+        tags=[<span class="st">"国家資格"</span>, <span class="st">"ITスキル"</span>, <span class="st">"設計"</span>],
+        study_hours_required=<span class="nu">500</span>, cost=<span class="nu">7_500</span>,
+        avg_salary_increase=<span class="nu">0.12</span>, demand_score=<span class="nu">70</span>, difficulty=<span class="nu">4</span>,
+        goal_match=[<span class="st">"promotion"</span>, <span class="st">"change"</span>],
+        interest_match=[<span class="st">"IT"</span>, <span class="st">"data"</span>],
+    ),
+]
+
+
+<span class="cm"># -------------------------------------------------
+# 3. 機会費用・ROI 計算エンジン
+#
+# 計算式:
+#   時給 = 年収(円) / 2080
+#   機会費用 = 時給 x 必要学習時間
+#   総投資額 = 機会費用 + 受験費 + 教材費見積
+#   期待年収増加 = 年収 x 平均昇給率 x ゴール係数
+#   ROIスコア = clip((期待増加-総投資)/総投資 x 20+50, 0, 100)
+# -------------------------------------------------</span>
+
+ANNUAL_WORK_HOURS = <span class="nu">2080</span>   <span class="cm"># 年間標準労働時間（週40h x 52週）</span>
+
+GOAL_MULTIPLIERS = {
+    <span class="st">"promotion"</span>:   <span class="nu">1.0</span>,
+    <span class="st">"change"</span>:      <span class="nu">1.2</span>,
+    <span class="st">"independent"</span>: <span class="nu">1.5</span>,
+    <span class="st">"startup"</span>:     <span class="nu">2.0</span>,
+    <span class="st">"overseas"</span>:    <span class="nu">1.3</span>,
+    <span class="st">"stability"</span>:   <span class="nu">0.8</span>,
+}
+
+
+<span class="kw">def</span> <span class="fn">calculate_oc</span>(profile: UserProfile, cert: Certification) -&gt; OpportunityCost:
+    <span class="st">"""機会費用と ROI を計算する"""</span>
+    MAN_YEN = <span class="nu">10_000</span>
+    hourly_rate   = profile.annual_income * MAN_YEN / ANNUAL_WORK_HOURS
+    weeks_needed  = cert.study_hours_required / profile.study_hours_per_week
+    months_needed = weeks_needed / <span class="nu">4.3</span>
+    study_cost    = cert.study_hours_required * hourly_rate
+    material_cost = profile.monthly_budget * MAN_YEN * months_needed * <span class="nu">0.3</span>
+    total_inv     = study_cost + cert.cost + material_cost
+    multiplier    = GOAL_MULTIPLIERS.get(profile.goal_type.value, <span class="nu">1.0</span>)
+    expected_gain = profile.annual_income * MAN_YEN * cert.avg_salary_increase * multiplier
+    monthly_gain  = expected_gain / <span class="nu">12</span>
+    payback       = total_inv / monthly_gain <span class="kw">if</span> monthly_gain &gt; <span class="nu">0</span> <span class="kw">else</span> <span class="fn">float</span>(<span class="st">"inf"</span>)
+    raw_roi       = (expected_gain - total_inv) / (total_inv + <span class="nu">1</span>)
+    roi_score     = min(<span class="nu">100.0</span>, max(<span class="nu">0.0</span>, raw_roi * <span class="nu">20</span> + <span class="nu">50</span>))
+    <span class="kw">return</span> OpportunityCost(
+        hourly_rate          = <span class="fn">round</span>(hourly_rate,    <span class="nu">0</span>),
+        total_study_cost     = <span class="fn">round</span>(study_cost,     <span class="nu">0</span>),
+        exam_cost            = cert.cost,
+        total_investment     = <span class="fn">round</span>(total_inv,      <span class="nu">0</span>),
+        expected_annual_gain = <span class="fn">round</span>(expected_gain,  <span class="nu">0</span>),
+        payback_months       = <span class="fn">round</span>(payback,        <span class="nu">1</span>),
+        roi_score            = <span class="fn">round</span>(roi_score,      <span class="nu">1</span>),
+        time_to_complete     = <span class="fn">round</span>(months_needed,  <span class="nu">1</span>),
+    )
+
+
+<span class="cm"># -------------------------------------------------
+# 4. スコアリング・ランキング
+#
+#   総合スコア（100点満点）の内訳:
+#     ROIスコア      40%
+#     市場需要スコア  20%
+#     ゴール適合度   20%
+#     興味適合度     15%
+#     実現可能性      5%
+# -------------------------------------------------</span>
+
+<span class="kw">def</span> <span class="fn">_feasibility_score</span>(profile: UserProfile, cert: Certification, months: <span class="fn">float</span>) -&gt; <span class="fn">float</span>:
+    period_ok = profile.study_months == <span class="nu">0</span> <span class="kw">or</span> months &lt;= profile.study_months
+    budget_ok = cert.cost &lt;= profile.monthly_budget * <span class="nu">10_000</span> * months
+    <span class="kw">if</span> period_ok <span class="kw">and</span> budget_ok: <span class="kw">return</span> <span class="nu">100.0</span>
+    <span class="kw">if</span> period_ok <span class="kw">or</span>  budget_ok: <span class="kw">return</span>  <span class="nu">50.0</span>
+    <span class="kw">return</span> <span class="nu">0.0</span>
+
+
+<span class="kw">def</span> <span class="fn">_total_score</span>(profile: UserProfile, cert: Certification, oc: OpportunityCost) -&gt; <span class="fn">float</span>:
+    goal_match = <span class="nu">100.0</span> <span class="kw">if</span> profile.goal_type.value <span class="kw">in</span> cert.goal_match <span class="kw">else</span> <span class="nu">0.0</span>
+    <span class="kw">if</span> profile.interests:
+        matched = <span class="fn">len</span>(<span class="fn">set</span>(profile.interests) &amp; <span class="fn">set</span>(cert.interest_match))
+        interest_match = matched / <span class="fn">len</span>(profile.interests) * <span class="nu">100</span>
+    <span class="kw">else</span>:
+        interest_match = <span class="nu">50.0</span>
+    feasibility = _feasibility_score(profile, cert, oc.time_to_complete)
+    <span class="kw">return</span> (
+        oc.roi_score        * <span class="nu">0.40</span>
+        + cert.demand_score * <span class="nu">0.20</span>
+        + goal_match        * <span class="nu">0.20</span>
+        + interest_match    * <span class="nu">0.15</span>
+        + feasibility       * <span class="nu">0.05</span>
+    )
+
+
+<span class="kw">def</span> <span class="fn">rank_certifications</span>(
+    profile: UserProfile,
+    db: List[Certification] = CERTIFICATIONS,
+    top_n: <span class="fn">int</span> = <span class="nu">6</span>,
+) -&gt; List[<span class="fn">tuple</span>]:
+    <span class="st">"""全資格をスコアリングして降順ソートし上位 top_n を返す"""</span>
+    scored = []
+    <span class="kw">for</span> cert <span class="kw">in</span> db:
+        oc    = calculate_oc(profile, cert)
+        score = _total_score(profile, cert, oc)
+        scored.append((cert, oc, score))
+    scored.sort(key=<span class="kw">lambda</span> x: x[<span class="nu">2</span>], reverse=<span class="kw">True</span>)
+    <span class="kw">return</span> scored[:top_n]
+
+
+<span class="kw">def</span> <span class="fn">analyse_factors</span>(profile: UserProfile) -&gt; dict:
+    <span class="st">"""ユーザーの ROI 影響ファクターを 0-100 でスコア化する"""</span>
+    income_gap = profile.target_income - profile.annual_income
+    pot = (income_gap / profile.annual_income * <span class="nu">100</span>) <span class="kw">if</span> profile.annual_income &gt; <span class="nu">0</span> <span class="kw">else</span> <span class="nu">0</span>
+    <span class="kw">return</span> {
+        <span class="st">"時間効率"</span>:        min(<span class="nu">100</span>, profile.study_hours_per_week * <span class="nu">2.5</span>),
+        <span class="st">"投資余力"</span>:        min(<span class="nu">100</span>, profile.monthly_budget * <span class="nu">10</span>),
+        <span class="st">"年収ポテンシャル"</span>: min(<span class="nu">100</span>, max(<span class="nu">0</span>, pot)),
+        <span class="st">"ゴール明確度"</span>:    <span class="nu">85.0</span> <span class="kw">if</span> profile.goal_type <span class="kw">else</span> <span class="nu">40.0</span>,
+        <span class="st">"学習継続性"</span>:      min(<span class="nu">100</span>, math.log1p(profile.study_hours_per_week) * <span class="nu">30</span>),
+    }
+
+
+<span class="cm"># -------------------------------------------------
+# 5. CLI - コマンドラインからの対話入力
+# -------------------------------------------------</span>
+
+GOAL_MENU = [
+    (<span class="st">"1"</span>, GoalType.PROMOTION,     <span class="st">"現職での昇進・昇給"</span>),
+    (<span class="st">"2"</span>, GoalType.CAREER_CHANGE, <span class="st">"業種・職種の転換"</span>),
+    (<span class="st">"3"</span>, GoalType.INDEPENDENT,   <span class="st">"独立・フリーランス化"</span>),
+    (<span class="st">"4"</span>, GoalType.STARTUP,       <span class="st">"起業・スタートアップ"</span>),
+    (<span class="st">"5"</span>, GoalType.OVERSEAS,      <span class="st">"海外就労・移住"</span>),
+    (<span class="st">"6"</span>, GoalType.STABILITY,     <span class="st">"安定・セカンドキャリア"</span>),
+]
+
+INTEREST_MENU = [
+    (<span class="st">"1"</span>,  <span class="st">"IT"</span>,         <span class="st">"IT・デジタル"</span>),
+    (<span class="st">"2"</span>,  <span class="st">"finance"</span>,   <span class="st">"金融・会計"</span>),
+    (<span class="st">"3"</span>,  <span class="st">"business"</span>,  <span class="st">"経営・MBA"</span>),
+    (<span class="st">"4"</span>,  <span class="st">"legal"</span>,     <span class="st">"法律・コンプライアンス"</span>),
+    (<span class="st">"5"</span>,  <span class="st">"hr"</span>,        <span class="st">"人事・労務"</span>),
+    (<span class="st">"6"</span>,  <span class="st">"marketing"</span>, <span class="st">"マーケティング"</span>),
+    (<span class="st">"7"</span>,  <span class="st">"data"</span>,      <span class="st">"データ・AI"</span>),
+    (<span class="st">"8"</span>,  <span class="st">"project"</span>,   <span class="st">"プロジェクト管理"</span>),
+    (<span class="st">"9"</span>,  <span class="st">"language"</span>,  <span class="st">"語学"</span>),
+]
+
+
+<span class="kw">def</span> <span class="fn">_input_int</span>(prompt: str, lo: <span class="fn">int</span>, hi: <span class="fn">int</span>) -&gt; <span class="fn">int</span>:
+    <span class="kw">while</span> <span class="kw">True</span>:
+        <span class="kw">try</span>:
+            v = <span class="fn">int</span>(<span class="fn">input</span>(prompt))
+            <span class="kw">if</span> lo &lt;= v &lt;= hi: <span class="kw">return</span> v
+            <span class="fn">print</span>(<span class="st">f"  {lo}～{hi} の値を入力してください。"</span>)
+        <span class="kw">except</span> ValueError:
+            <span class="fn">print</span>(<span class="st">"  数値を入力してください。"</span>)
+
+
+<span class="kw">def</span> <span class="fn">_input_float</span>(prompt: str, lo: <span class="fn">float</span>, hi: <span class="fn">float</span>) -&gt; <span class="fn">float</span>:
+    <span class="kw">while</span> <span class="kw">True</span>:
+        <span class="kw">try</span>:
+            v = <span class="fn">float</span>(<span class="fn">input</span>(prompt))
+            <span class="kw">if</span> lo &lt;= v &lt;= hi: <span class="kw">return</span> v
+            <span class="fn">print</span>(<span class="st">f"  {lo}～{hi} の値を入力してください。"</span>)
+        <span class="kw">except</span> ValueError:
+            <span class="fn">print</span>(<span class="st">"  数値を入力してください。"</span>)
+
+
+<span class="kw">def</span> <span class="fn">collect_profile</span>() -&gt; UserProfile:
+    <span class="fn">print</span>(<span class="st">"\n" + "="*52</span>)
+    <span class="fn">print</span>(<span class="st">"  SkillRoi - 学習投資対効果診断"</span>)
+    <span class="fn">print</span>(<span class="st">"="*52</span>)
+    name   = <span class="fn">input</span>(<span class="st">"\nお名前: "</span>).strip() <span class="kw">or</span> <span class="st">"ユーザー"</span>
+    age    = _input_int(<span class="st">"年齢: "</span>, <span class="nu">18</span>, <span class="nu">70</span>)
+    income = _input_int(<span class="st">"現在の年収（万円）: "</span>, <span class="nu">0</span>, <span class="nu">5000</span>)
+    hours  = _input_float(<span class="st">"週の学習可能時間（h）: "</span>, <span class="nu">0.5</span>, <span class="nu">40</span>)
+    budget = _input_int(<span class="st">"月の学習予算（万円, 0=なし）: "</span>, <span class="nu">0</span>, <span class="nu">100</span>)
+    target = _input_int(<span class="st">"目標年収（万円）: "</span>, income, <span class="nu">5000</span>)
+    period = _input_int(<span class="st">"希望学習期間（月, 0=制限なし）: "</span>, <span class="nu">0</span>, <span class="nu">60</span>)
+
+    <span class="fn">print</span>(<span class="st">"\n目標タイプを選んでください:"</span>)
+    <span class="kw">for</span> n, _, label <span class="kw">in</span> GOAL_MENU:
+        <span class="fn">print</span>(<span class="st">f"  {n}. {label}"</span>)
+    g_key = _input_int(<span class="st">"番号: "</span>, <span class="nu">1</span>, <span class="fn">len</span>(GOAL_MENU))
+    goal  = GOAL_MENU[g_key - <span class="nu">1</span>][<span class="nu">1</span>]
+
+    <span class="fn">print</span>(<span class="st">"\n興味のある分野を選んでください（複数可、カンマ区切り 例: 1,3,7）:"</span>)
+    <span class="kw">for</span> n, _, label <span class="kw">in</span> INTEREST_MENU:
+        <span class="fn">print</span>(<span class="st">f"  {n}. {label}"</span>)
+    raw = <span class="fn">input</span>(<span class="st">"番号（Enterでスキップ）: "</span>).strip()
+    interests: List[str] = []
+    <span class="kw">if</span> raw:
+        idx_map = {n: v <span class="kw">for</span> n, v, _ <span class="kw">in</span> INTEREST_MENU}
+        <span class="kw">for</span> token <span class="kw">in</span> raw.split(<span class="st">","</span>):
+            v = idx_map.get(token.strip())
+            <span class="kw">if</span> v: interests.append(v)
+
+    <span class="kw">return</span> UserProfile(
+        name=name, age=age, annual_income=income,
+        study_hours_per_week=hours, goal_type=goal,
+        target_income=target, interests=interests,
+        monthly_budget=budget, study_months=period,
+    )
+
+
+<span class="kw">def</span> <span class="fn">print_results</span>(profile: UserProfile) -&gt; <span class="kw">None</span>:
+    ranked  = rank_certifications(profile)
+    factors = analyse_factors(profile)
+    hourly  = profile.annual_income * <span class="nu">10_000</span> / ANNUAL_WORK_HOURS
+
+    <span class="fn">print</span>(<span class="st">f"\n{'='*52}"</span>)
+    <span class="fn">print</span>(<span class="st">f"  診断結果 - {profile.name}さん"</span>)
+    <span class="fn">print</span>(<span class="st">f"{'='*52}"</span>)
+    <span class="fn">print</span>(<span class="st">f"  時給換算（機会費用基準）: ¥{hourly:,.0f} / 時間"</span>)
+    <span class="fn">print</span>(<span class="st">f"\n  ROIファクター分析:"</span>)
+    <span class="kw">for</span> k, v <span class="kw">in</span> factors.items():
+        bar = <span class="st">"#"</span> * <span class="fn">int</span>(v / <span class="nu">5</span>) + <span class="st">"-"</span> * (<span class="nu">20</span> - <span class="fn">int</span>(v / <span class="nu">5</span>))
+        <span class="fn">print</span>(<span class="st">f"  {k:&lt;12} [{bar}] {v:.0f}/100"</span>)
+    <span class="fn">print</span>(<span class="st">f"\n  おすすめ資格ランキング（上位{len(ranked)}件）"</span>)
+    <span class="fn">print</span>(<span class="st">f"  {'-'*48}"</span>)
+    <span class="kw">for</span> rank, (cert, oc, score) <span class="kw">in</span> <span class="fn">enumerate</span>(ranked, <span class="nu">1</span>):
+        stars = <span class="st">"*"</span> * cert.difficulty + <span class="st">"-"</span> * (<span class="nu">5</span> - cert.difficulty)
+        <span class="fn">print</span>(<span class="st">f"\n  #{rank}  {cert.name}"</span>)
+        <span class="fn">print</span>(<span class="st">f"       主催     : {cert.org}"</span>)
+        <span class="fn">print</span>(<span class="st">f"       難易度   : [{stars}]"</span>)
+        <span class="fn">print</span>(<span class="st">f"       ROIスコア: {oc.roi_score:.1f} / 100"</span>)
+        <span class="fn">print</span>(<span class="st">f"       総投資額  : ¥{oc.total_investment:&gt;12,.0f}"</span>)
+        <span class="fn">print</span>(<span class="st">f"       期待年収増: ¥{oc.expected_annual_gain:&gt;12,.0f} / 年"</span>)
+        <span class="fn">print</span>(<span class="st">f"       投資回収  :  {oc.payback_months:.1f} ヶ月"</span>)
+        <span class="fn">print</span>(<span class="st">f"       学習期間  :  {oc.time_to_complete:.1f} ヶ月"</span>)
+    <span class="fn">print</span>(<span class="st">f"\n{'='*52}\n"</span>)
+
+
+<span class="cm"># -------------------------------------------------
+# 6. エントリーポイント
+# -------------------------------------------------</span>
+
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    profile = collect_profile()
+    print_results(profile)</pre>
+    </div>
+
+  </div><!-- /python-section -->
+
+</main>
+
+<footer>
+  <p class="footer-text">© 2025 SkillRoi — 本ツールによる試算は参考情報であり、実際の収入変化を保証するものではありません。</p>
+</footer>
+
+
+
+<script>
+// ─── 資格データベース ───────────────────────────────────
+const CERTIFICATIONS = [
+  { id:"aws-saa", name:"AWS認定 ソリューションアーキテクト", org:"Amazon Web Services", category:"IT・クラウド", tags:["クラウド","インフラ","設計"], studyHours:200, cost:30000, salaryIncrease:0.15, demand:92, difficulty:3, goalMatch:["promotion","change","independent"], interestMatch:["IT","data"] },
+  { id:"fp2",     name:"FP2級（ファイナンシャルプランナー）", org:"日本FP協会",         category:"金融・資産",  tags:["資産運用","保険","税金"],   studyHours:150, cost:8700,  salaryIncrease:0.08, demand:78, difficulty:2, goalMatch:["promotion","stability","independent"], interestMatch:["finance","business"] },
+  { id:"sharoushi",name:"社会保険労務士（社労士）",       org:"全国社会保険労務士会連合会", category:"法律・人事",  tags:["労務","年金","社会保険"],   studyHours:800, cost:15000, salaryIncrease:0.25, demand:70, difficulty:5, goalMatch:["independent","change","startup"], interestMatch:["hr","legal"] },
+  { id:"pmp",     name:"PMP（プロジェクトマネジメント）", org:"PMI",                  category:"マネジメント", tags:["PM","アジャイル","スクラム"],studyHours:300, cost:55000, salaryIncrease:0.20, demand:88, difficulty:4, goalMatch:["promotion","change","overseas"], interestMatch:["project","business","IT"] },
+  { id:"toeic",   name:"TOEIC® 900点突破",              org:"国際ビジネスコミュニケーション協会", category:"語学", tags:["英語","グローバル","ビジネス英語"], studyHours:400, cost:7810, salaryIncrease:0.10, demand:82, difficulty:3, goalMatch:["overseas","promotion","change"], interestMatch:["language","business"] },
+  { id:"chusho",  name:"中小企業診断士",                 org:"中小企業診断士協会",    category:"経営・コンサル", tags:["経営","コンサル","財務"],  studyHours:1000,cost:17200, salaryIncrease:0.30, demand:75, difficulty:5, goalMatch:["startup","independent","promotion"], interestMatch:["business","finance","marketing"] },
+  { id:"ga4",     name:"Googleアナリティクス認定（GA4）",org:"Google",               category:"デジタルマーケ",tags:["分析","Web","データ"],     studyHours:40,  cost:0,     salaryIncrease:0.06, demand:80, difficulty:1, goalMatch:["promotion","change","independent"], interestMatch:["marketing","data","IT"] },
+  { id:"ap",      name:"応用情報技術者試験（AP）",       org:"IPA",                  category:"IT国家資格",  tags:["国家資格","ITスキル","設計"],studyHours:500, cost:7500,  salaryIncrease:0.12, demand:70, difficulty:4, goalMatch:["promotion","change"], interestMatch:["IT","data"] },
+];
+
+// ─── 定数 ───────────────────────────────────────────────
+const ANNUAL_WH = 2080;
+const MAN_YEN   = 10000;
+const GOAL_MULT = { promotion:1.0, change:1.2, independent:1.5, startup:2.0, overseas:1.3, stability:0.8 };
+
+// ─── 状態 ───────────────────────────────────────────────
+let userData = {};
+
+// ─── ステッパー ──────────────────────────────────────────
+function updateStepper(active) {
+  for (let i = 1; i <= 4; i++) {
+    const dot = document.getElementById(`dot-${i}`);
+    const lbl = document.getElementById(`lbl-${i}`);
+    dot.classList.remove('active','done');
+    if (lbl) lbl.classList.remove('active');
+    if (i < active)      { dot.classList.add('done');   dot.textContent = '✓'; }
+    else if (i === active){ dot.classList.add('active'); dot.textContent = i; if(lbl) lbl.classList.add('active'); }
+    else                  { dot.textContent = i; }
+  }
+}
+
+function nextStep(step) {
+  if (step === 1) {
+    const name = document.getElementById('name').value.trim();
+    const age  = document.getElementById('age').value;
+    const edu  = document.getElementById('education').value;
+    if (!name || !age || !edu) { alert('お名前・年齢・最終学歴は必須項目です。'); return; }
+    userData.name      = name;
+    userData.age       = parseInt(age);
+    userData.gender    = document.getElementById('gender').value;
+    userData.education = edu;
+    userData.region    = document.getElementById('region').value;
+  } else if (step === 2) {
+    if (!document.getElementById('employment').value) { alert('雇用形態を選択してください。'); return; }
+    userData.employment    = document.getElementById('employment').value;
+    userData.job           = document.getElementById('job').value;
+    userData.annual_income = parseInt(document.getElementById('income').value);
+    userData.study_hours   = parseInt(document.getElementById('study_hours').value);
+    userData.budget        = parseInt(document.getElementById('budget').value);
+    userData.period        = parseInt(document.getElementById('period').value);
+  }
+  document.getElementById(`step${step}`).classList.remove('active');
+  document.getElementById(`step${step+1}`).classList.add('active');
+  updateStepper(step + 1);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function prevStep(step) {
+  document.getElementById(`step${step}`).classList.remove('active');
+  document.getElementById(`step${step-1}`).classList.add('active');
+  updateStepper(step - 1);
+}
+
+function toggleCheck(el) {
+  el.closest('.check-item').classList.toggle('selected', el.checked);
+}
+
+// ─── 計算エンジン ────────────────────────────────────────
+function calcOC(cert, p) {
+  const hourlyRate    = p.annual_income * MAN_YEN / ANNUAL_WH;
+  const months        = (cert.studyHours / p.study_hours) / 4.3;
+  const studyCost     = cert.studyHours * hourlyRate;
+  const materialCost  = p.budget * MAN_YEN * months * 0.3;
+  const totalInv      = studyCost + cert.cost + materialCost;
+  const mult          = GOAL_MULT[p.goal_type] || 1.0;
+  const expectedGain  = p.annual_income * MAN_YEN * cert.salaryIncrease * mult;
+  const payback       = expectedGain > 0 ? totalInv / (expectedGain / 12) : Infinity;
+  const rawRoi        = (expectedGain - totalInv) / (totalInv + 1);
+  const roiScore      = Math.min(100, Math.max(0, rawRoi * 20 + 50));
+  return { hourlyRate, studyCost, totalInv, expectedGain, payback, roiScore, months };
+}
+
+function totalScore(cert, p, oc) {
+  const goalMatch     = cert.goalMatch.includes(p.goal_type) ? 100 : 0;
+  const intMatch      = p.interests.length
+    ? cert.interestMatch.filter(i => p.interests.includes(i)).length / p.interests.length * 100
+    : 50;
+  const periodOk = p.period === 0 || oc.months <= p.period;
+  const budgetOk = cert.cost <= p.budget * MAN_YEN * oc.months;
+  const feas = (periodOk && budgetOk) ? 100 : (periodOk || budgetOk ? 50 : 0);
+  return oc.roiScore*0.40 + cert.demand*0.20 + goalMatch*0.20 + intMatch*0.15 + feas*0.05;
+}
+
+// ─── 診断開始 ────────────────────────────────────────────
+function diagnose() {
+  if (!document.getElementById('goal_type').value) { alert('希望の変化を選択してください。'); return; }
+  userData.goal_type     = document.getElementById('goal_type').value;
+  userData.target_income = parseInt(document.getElementById('target_income').value);
+  userData.interests     = [...document.querySelectorAll('#interests input:checked')].map(e=>e.value);
+  userData.free_text     = document.getElementById('free_text').value;
+
+  document.getElementById('step3').classList.remove('active');
+  updateStepper(4);
+  const loading = document.getElementById('loading');
+  loading.classList.add('active');
+
+  const kanjis = ['算','学','投','益','資','格','道'];
+  const texts  = ['機会費用を計算中...','資格データベースを検索中...','ROIスコアを算出中...','最適プランを選定中...'];
+  let k=0, t=0;
+  const kT = setInterval(()=>{ document.getElementById('loading-kanji').textContent = kanjis[k++%kanjis.length]; }, 400);
+  const tT = setInterval(()=>{ document.getElementById('loading-text').textContent  = texts[t++%texts.length]; }, 1000);
+
+  setTimeout(() => {
+    clearInterval(kT); clearInterval(tT);
+    loading.classList.remove('active');
+    renderResults(userData);
+  }, 3000);
+}
+
+// ─── 結果レンダリング ────────────────────────────────────
+function renderResults(p) {
+  const hourlyRate = p.annual_income * MAN_YEN / ANNUAL_WH;
+
+  const ranked = CERTIFICATIONS.map(cert => {
+    const oc    = calcOC(cert, p);
+    const score = totalScore(cert, p, oc);
+    return { cert, oc, score };
+  }).sort((a,b) => b.score - a.score);
+
+  // ヒーロー
+  document.getElementById('res-name').textContent    = p.name;
+  document.getElementById('res-hourly').textContent  = `¥${Math.round(hourlyRate).toLocaleString()}`;
+  const best = ranked[0];
+  document.getElementById('res-summary').innerHTML   =
+    `時給換算 <strong>¥${Math.round(hourlyRate).toLocaleString()}/h</strong> をもとに算出。` +
+    `最優先推奨は「${best.cert.name}」— ROIスコア ${best.oc.roiScore.toFixed(1)}/100。` +
+    `${best.oc.months.toFixed(1)}ヶ月で取得可能、年収 +${Math.round(best.oc.expectedGain/MAN_YEN)}万円が期待できます。`;
+
+  // ROI棒グラフ
+  const gap = p.target_income - p.annual_income;
+  const factors = {
+    '時間効率':        Math.min(100, p.study_hours * 2.5),
+    '投資余力':        Math.min(100, p.budget * 10),
+    '年収ポテンシャル': Math.min(100, Math.max(0, p.annual_income > 0 ? gap / p.annual_income * 100 : 0)),
+    'ゴール明確度':    p.goal_type ? 85 : 40,
+    '学習継続性':      Math.min(100, Math.log1p(p.study_hours) * 30),
+  };
+  document.getElementById('roi-bars').innerHTML = Object.entries(factors).map(([k,v]) => `
+    <div class="roi-bar-item">
+      <div class="roi-bar-header"><span class="roi-bar-name">${k}</span><span class="roi-bar-score">${Math.round(v)}/100</span></div>
+      <div class="roi-track"><div class="roi-fill" style="width:0%" data-w="${v}"></div></div>
+    </div>`).join('');
+  setTimeout(() => document.querySelectorAll('.roi-fill').forEach(el => el.style.width = el.dataset.w + '%'), 200);
+
+  // 機会費用計算式
+  const yearlyHours = p.study_hours * 52;
+  const ocTotal = Math.round(yearlyHours * hourlyRate);
+  document.getElementById('oc-formula').innerHTML = `
+    <div class="formula-box"><p class="formula-label">時給換算</p><p class="formula-val">¥${Math.round(hourlyRate).toLocaleString()}</p></div>
+    <span class="formula-op">×</span>
+    <div class="formula-box"><p class="formula-label">年間学習時間</p><p class="formula-val">${yearlyHours}h</p></div>
+    <span class="formula-op">=</span>
+    <div class="formula-box formula-result"><p class="formula-label">年間機会費用</p><p class="formula-val">¥${ocTotal.toLocaleString()}</p></div>`;
+  document.getElementById('oc-insight').innerHTML =
+    `年間 <strong>${yearlyHours}時間</strong> の学習に機会費用として <strong>¥${ocTotal.toLocaleString()}</strong> を投じることになります。` +
+    `目標年収まで ${gap}万円 の差があります。ROIスコア上位の資格から優先的に取り組むことで投資効率を最大化できます。`;
+
+  // 資格カード
+  document.getElementById('certs-grid').innerHTML = ranked.slice(0,6).map(({cert,oc},i) => `
+    <div class="cert-card ${i===0?'recommended':''}">
+      <div class="cert-card-top">
+        <span class="cert-rank">${i+1}</span>
+        <p class="cert-category">${cert.category}${i===0?' <span class="rec-badge">★ ベストROI</span>':''}</p>
+        <p class="cert-name">${cert.name}</p>
+        <p class="cert-org">${cert.org}</p>
+      </div>
+      <div class="cert-card-body">
+        <div class="cert-metrics">
+          <div class="cert-metric"><p class="cert-metric-label">期待年収増加</p><p class="cert-metric-val gold">+${Math.round(oc.expectedGain/MAN_YEN)}万円</p></div>
+          <div class="cert-metric"><p class="cert-metric-label">学習期間</p><p class="cert-metric-val">${oc.months.toFixed(1)}ヶ月</p></div>
+          <div class="cert-metric"><p class="cert-metric-label">総投資額</p><p class="cert-metric-val">¥${Math.round(oc.totalInv/MAN_YEN)}万</p></div>
+          <div class="cert-metric"><p class="cert-metric-label">投資回収</p><p class="cert-metric-val green">${isFinite(oc.payback)?oc.payback.toFixed(1)+'ヶ月':'−'}</p></div>
+        </div>
+        <div class="cert-roi-bar">
+          <div class="cert-roi-header"><span class="cert-roi-label">ROIスコア</span><span class="cert-roi-score">${oc.roiScore.toFixed(1)}/100</span></div>
+          <div class="cert-roi-track"><div class="cert-roi-fill" style="width:${oc.roiScore}%"></div></div>
+        </div>
+        <div class="cert-tags">
+          ${cert.tags.map(t=>`<span class="cert-tag">${t}</span>`).join('')}
+          <span class="cert-tag">難易度${'★'.repeat(cert.difficulty)}</span>
+        </div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('cert-count').textContent = `${Math.min(6, ranked.length)}件の資格が見つかりました`;
+  document.getElementById('results').classList.add('active');
+  document.getElementById('stepper').style.display = 'none';
+  setTimeout(() => document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'}), 200);
+}
+
+
+function resetDiagnosis() {
+  document.getElementById('results').classList.remove('active');
+  document.getElementById('stepper').style.display = 'flex';
+  document.getElementById('step1').classList.add('active');
+  updateStepper(1);
+  userData = {};
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+</script>
+</body>
+</html>
