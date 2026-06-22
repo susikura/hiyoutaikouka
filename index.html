@@ -449,7 +449,7 @@ const QUALIFICATIONS = [{
   demand: 4,
   durability: 4,
   industries: ["コンサル", "金融", "製造", "小売"],
-  roles: ["経営・管理", "営業", "企画"],
+  roles: ["経営・管理", "営業", "企画", "マーケティング"],
   blurb: "唯一の経営コンサル国家資格。副業・独立への横展開が利く。",
   schools: [["資格の学校TAC", "https://www.tac-school.co.jp/"], ["診断士ゼミナール", "https://www.rebo-success.co.jp/"]]
 }, {
@@ -554,7 +554,7 @@ const QUALIFICATIONS = [{
   demand: 3,
   durability: 3,
   industries: ["IT", "製造", "金融"],
-  roles: ["技術職", "企画", "経営・管理"],
+  roles: ["技術職", "企画", "経営・管理", "マーケティング"],
   blurb: "設計・マネジメント力の証明。SIerでの昇給に効きやすい。",
   schools: [["TAC", "https://www.tac-school.co.jp/"], ["iTEC", "https://www.itec.co.jp/"]]
 }, {
@@ -599,7 +599,7 @@ const QUALIFICATIONS = [{
   demand: 4,
   durability: 1,
   industries: ["IT", "コンサル", "製造"],
-  roles: ["技術職", "企画", "営業"],
+  roles: ["技術職", "企画", "営業", "マーケティング"],
   blurb: "AIの基礎知識証明で需要は話題性が高い。ただし合格率が高く陳腐化も速いため、単独での持続価値は限定的。",
   schools: [["Aidemy", "https://aidemy.net/"], ["スキルアップAI", "https://www.skillupai.com/"]]
 }, {
@@ -734,7 +734,7 @@ const QUALIFICATIONS = [{
   demand: 4,
   durability: 3,
   industries: ["IT", "金融", "製造", "コンサル", "小売"],
-  roles: ["営業", "企画", "経営・管理", "事務"],
+  roles: ["営業", "マーケティング", "企画", "経営・管理", "事務"],
   blurb: "外資・グローバル職で安定評価。昇進要件にする企業もある。",
   schools: [["スタディサプリ", "https://eigosapuri.jp/"], ["ECC", "https://www.ecc.co.jp/"]]
 }, {
@@ -852,7 +852,7 @@ const HORIZON_OPTIONS = [{
 
 // プロファイル選択肢（精度向上のための詳細入力）
 const INDUSTRIES = ["金融", "IT", "製造", "小売", "不動産", "建設", "医療・福祉", "コンサル", "人材", "教育", "公共", "観光", "保険", "士業", "その他"];
-const ROLES = ["営業", "事務", "経理・財務", "人事・労務", "技術職", "企画", "経営・管理", "設計", "医療・福祉専門職", "教育職", "士業", "その他"];
+const ROLES = ["営業", "マーケティング", "事務", "経理・財務", "人事・労務", "技術職", "企画", "経営・管理", "設計", "医療・福祉専門職", "教育職", "士業", "その他"];
 const EDUCATIONS = [{
   id: "highschool",
   label: "高校卒"
@@ -1000,12 +1000,41 @@ const DEFAULT_WEIGHTS = {
   netValue: 1.0,
   efficiency: 1.0
 };
-function scoreFor(q, ctx, change, horizon, profile) {
+function blendWeights(changes) {
+  // 複数の「望む変化」を選んだ場合、各軸ウェイトを平均して合成する
+  if (!changes || changes.length === 0) return {
+    ...DEFAULT_WEIGHTS
+  };
+  const keys = ["market", "durability", "scarcity", "netValue", "efficiency"];
+  const acc = {
+    market: 0,
+    durability: 0,
+    scarcity: 0,
+    netValue: 0,
+    efficiency: 0
+  };
+  let n = 0;
+  changes.forEach(id => {
+    const w = CHANGE_WEIGHTS[id];
+    if (w) {
+      keys.forEach(k => {
+        acc[k] += w[k];
+      });
+      n++;
+    }
+  });
+  if (n === 0) return {
+    ...DEFAULT_WEIGHTS
+  };
+  keys.forEach(k => {
+    acc[k] /= n;
+  });
+  return acc;
+}
+function scoreFor(q, ctx, changes, horizon, profile) {
   const r = calcResult(q, ctx);
   const ax = axisScores(q, r);
-  const w = {
-    ...(CHANGE_WEIGHTS[change] || DEFAULT_WEIGHTS)
-  };
+  const w = blendWeights(changes);
 
   // ベース合成（重み付き平均）
   const wSum = w.market + w.durability + w.scarcity + w.netValue + w.efficiency;
@@ -1174,21 +1203,30 @@ function RadarChart({
 /* ============================================================ */
 
 function QualROI() {
-  const [step, setStep] = useState(0); // 0 intro, 1 form, 2 results
+  const [step, setStep] = useState(0); // 0 intro, 1 form, 2 results, 3 corporate
   const [age, setAge] = useState(28);
   const [gender, setGender] = useState("");
   const [income, setIncome] = useState(400); // 万円/年
   const [weeklyHours, setWeeklyHours] = useState(10);
-  const [change, setChange] = useState(""); // 望む変化（単一）
+  const [changes, setChanges] = useState([]); // 望む変化（複数）
   const [horizon, setHorizon] = useState(""); // 期限の希望（単一）
   const [industry, setIndustry] = useState(""); // 現職の業界
   const [role, setRole] = useState(""); // 職種
   const [education, setEducation] = useState(""); // 学歴
   const [experience, setExperience] = useState(5); // 経験年数
-  const [filterCat, setFilterCat] = useState(""); // 結果の分野絞り込み（事前指定）
+  const [filterCats, setFilterCats] = useState([]); // 結果の分野絞り込み（事前指定・複数）
   const [catFilter, setCatFilter] = useState("すべて");
   const [detail, setDetail] = useState(null); // qualification id for modal
   const [requested, setRequested] = useState({}); // id -> true
+  // 企業向け問い合わせフォーム
+  const [corp, setCorp] = useState({
+    company: "",
+    name: "",
+    email: "",
+    qual: "",
+    message: ""
+  });
+  const [corpSent, setCorpSent] = useState(false);
   const resultsRef = useRef(null);
 
   // 時給 = 年収 / (52週 × 40h) 概算
@@ -1206,26 +1244,35 @@ function QualROI() {
   const ranked = useMemo(() => {
     return QUALIFICATIONS.map(q => ({
       q,
-      ...scoreFor(q, ctx, change, horizon, profile)
+      ...scoreFor(q, ctx, changes, horizon, profile)
     })).sort((a, b) => b.score - a.score);
-  }, [ctx, change, horizon, profile]);
+  }, [ctx, changes, horizon, profile]);
 
-  // 結果初期表示時、事前に分野が指定されていればそれを反映
+  // 結果初期表示時、事前に分野が指定されていればそれを反映（複数→「すべて」内で絞る）
   useEffect(() => {
-    if (filterCat) setCatFilter(filterCat);
-  }, [filterCat]);
+    if (filterCats.length === 1) setCatFilter(filterCats[0]);else setCatFilter("すべて");
+  }, [filterCats]);
+
+  // 事前指定された分野（複数可）でプールを絞る共通関数
+  const inPreFilter = x => filterCats.length === 0 || filterCats.includes(x.q.category);
   const filtered = useMemo(() => {
-    if (catFilter === "すべて") return ranked;
-    return ranked.filter(x => x.q.category === catFilter);
-  }, [ranked, catFilter]);
+    const pool = ranked.filter(inPreFilter);
+    if (catFilter === "すべて") return pool;
+    return pool.filter(x => x.q.category === catFilter);
+  }, [ranked, catFilter, filterCats]);
 
   // Top3 は（分野指定があればその中から）選ぶ
   const top3 = useMemo(() => {
-    const pool = filterCat ? ranked.filter(x => x.q.category === filterCat) : ranked;
-    return pool.slice(0, 3);
-  }, [ranked, filterCat]);
-  const canSubmit = change !== ""; // 望む変化は必須
+    return ranked.filter(inPreFilter).slice(0, 3);
+  }, [ranked, filterCats]);
+  const canSubmit = changes.length > 0; // 望む変化は1つ以上必須
 
+  function toggleChange(id) {
+    setChanges(c => c.includes(id) ? c.filter(x => x !== id) : [...c, id]);
+  }
+  function togglePreFilter(cat) {
+    setFilterCats(c => c.includes(cat) ? c.filter(x => x !== cat) : [...c, cat]);
+  }
   function submit() {
     if (!canSubmit) return;
     setStep(2);
@@ -1236,6 +1283,17 @@ function QualROI() {
         block: "start"
       });
     }, 80);
+  }
+  const corpValid = corp.company.trim() && corp.name.trim() && /\S+@\S+\.\S+/.test(corp.email) && corp.message.trim();
+  function submitCorp() {
+    if (!corpValid) return;
+    // 静的アプリのためサーバー送信は行わず、利用者のメールクライアントを起動する安全な方式
+    const to = "partners@jika-example.jp";
+    const subject = `【資料請求先 掲載希望】${corp.company}`;
+    const lines = [`■ 企業・団体名: ${corp.company}`, `■ ご担当者名: ${corp.name}`, `■ ご連絡先メール: ${corp.email}`, corp.qual ? `■ 掲載をご希望の資格・講座: ${corp.qual}` : "", "", "■ お問い合わせ内容:", corp.message].filter(Boolean).join("\n");
+    const url = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines)}`;
+    window.location.href = url;
+    setCorpSent(true);
   }
   const detailItem = detail ? ranked.find(x => x.q.id === detail) : null;
   return /*#__PURE__*/React.createElement("div", {
@@ -1284,12 +1342,19 @@ function QualROI() {
     className: "qroi-how"
   }, /*#__PURE__*/React.createElement("span", {
     className: "qroi-how-step"
-  }, "03"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "リターンで順位化"), /*#__PURE__*/React.createElement("span", null, "投資に見合う成果が大きい順に、あなた専用のルートを提示")))), /*#__PURE__*/React.createElement("button", {
+  }, "03"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "リターンで順位化"), /*#__PURE__*/React.createElement("span", null, "投資に見合う成果が大きい順に、あなた専用のルートを提示")))), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-hero-actions"
+  }, /*#__PURE__*/React.createElement("button", {
     className: "qroi-cta",
     onClick: () => setStep(1)
   }, "診断をはじめる", /*#__PURE__*/React.createElement("span", {
     className: "qroi-cta-arrow"
-  }, "→")), /*#__PURE__*/React.createElement("p", {
+  }, "→")), /*#__PURE__*/React.createElement("button", {
+    className: "qroi-cta-ghost",
+    onClick: () => setStep(3)
+  }, "企業の方はこちら", /*#__PURE__*/React.createElement("span", {
+    className: "qroi-cta-arrow"
+  }, "→"))), /*#__PURE__*/React.createElement("p", {
     className: "qroi-disclaimer"
   }, "※ 年収・学習時間・合格率はいずれも一般的な目安に基づく概算です。実際の数値には個人差があります。 資料請求は各資格の公式・主要スクールサイトへご案内します。")), step === 1 && /*#__PURE__*/React.createElement("section", {
     className: "qroi-form"
@@ -1304,12 +1369,18 @@ function QualROI() {
   }, /*#__PURE__*/React.createElement("input", {
     type: "range",
     min: "18",
-    max: "65",
+    max: "70",
     value: age,
     onChange: e => setAge(+e.target.value)
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "qroi-slider-val"
-  }, age, /*#__PURE__*/React.createElement("small", null, "歳"))), /*#__PURE__*/React.createElement("p", {
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-num-input"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    min: "18",
+    max: "70",
+    value: age,
+    onChange: e => setAge(clamp(+e.target.value || 0, 18, 70))
+  }), /*#__PURE__*/React.createElement("small", null, "歳"))), /*#__PURE__*/React.createElement("p", {
     className: "qroi-field-note"
   }, "活用年数の見積りに使います（若いほどリターン期間が長い）。")), /*#__PURE__*/React.createElement("div", {
     className: "qroi-field"
@@ -1328,13 +1399,20 @@ function QualROI() {
   }, /*#__PURE__*/React.createElement("input", {
     type: "range",
     min: "0",
-    max: "1500",
-    step: "20",
+    max: "2000",
+    step: "10",
     value: income,
     onChange: e => setIncome(+e.target.value)
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "qroi-slider-val"
-  }, income, /*#__PURE__*/React.createElement("small", null, "万円"))), /*#__PURE__*/React.createElement("p", {
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-num-input"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    min: "0",
+    max: "5000",
+    step: "10",
+    value: income,
+    onChange: e => setIncome(clamp(+e.target.value || 0, 0, 5000))
+  }), /*#__PURE__*/React.createElement("small", null, "万円"))), /*#__PURE__*/React.createElement("p", {
     className: "qroi-field-note"
   }, "換算時給 ", /*#__PURE__*/React.createElement("strong", null, hourlyWage.toLocaleString(), "円"), " ＝ 学習1時間あたりの機会費用。")), /*#__PURE__*/React.createElement("div", {
     className: "qroi-field"
@@ -1346,24 +1424,30 @@ function QualROI() {
     max: "40",
     value: weeklyHours,
     onChange: e => setWeeklyHours(+e.target.value)
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "qroi-slider-val"
-  }, weeklyHours, /*#__PURE__*/React.createElement("small", null, "h/週"))), /*#__PURE__*/React.createElement("p", {
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-num-input"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    min: "1",
+    max: "80",
+    value: weeklyHours,
+    onChange: e => setWeeklyHours(clamp(+e.target.value || 1, 1, 80))
+  }), /*#__PURE__*/React.createElement("small", null, "h/週"))), /*#__PURE__*/React.createElement("p", {
     className: "qroi-field-note"
   }, "合格までの期間（何ヶ月かかるか）の計算に使います。"))), /*#__PURE__*/React.createElement("div", {
     className: "qroi-field qroi-field-wide qroi-change-field"
   }, /*#__PURE__*/React.createElement("label", null, "どんな変化を望んでいますか？", /*#__PURE__*/React.createElement("span", {
     className: "qroi-req"
-  }, "必須")), /*#__PURE__*/React.createElement("p", {
+  }, "必須・複数選択可")), /*#__PURE__*/React.createElement("p", {
     className: "qroi-field-sub"
-  }, "選んだ方向に合わせて、評価する資格と優先順位が大きく変わります。"), /*#__PURE__*/React.createElement("div", {
+  }, "複数選ぶと、それぞれの方向性を合成して評価します。優先順位が大きく変わります。"), /*#__PURE__*/React.createElement("div", {
     className: "qroi-changes"
   }, CHANGE_OPTIONS.map(c => /*#__PURE__*/React.createElement("button", {
     key: c.id,
-    className: `qroi-change ${change === c.id ? "sel" : ""}`,
-    onClick: () => setChange(c.id)
+    className: `qroi-change ${changes.includes(c.id) ? "sel" : ""}`,
+    onClick: () => toggleChange(c.id)
   }, /*#__PURE__*/React.createElement("span", {
-    className: "qroi-change-radio"
+    className: "qroi-change-check"
   }), /*#__PURE__*/React.createElement("span", {
     className: "qroi-change-body"
   }, /*#__PURE__*/React.createElement("strong", null, c.label), /*#__PURE__*/React.createElement("span", null, c.desc)))))), /*#__PURE__*/React.createElement("div", {
@@ -1426,24 +1510,36 @@ function QualROI() {
     className: "qroi-pfield"
   }, /*#__PURE__*/React.createElement("label", null, "社会人経験 ", /*#__PURE__*/React.createElement("span", {
     className: "qroi-exp-val"
-  }, experience, "年")), /*#__PURE__*/React.createElement("input", {
+  }, experience, "年")), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-slider-row"
+  }, /*#__PURE__*/React.createElement("input", {
     type: "range",
     min: "0",
-    max: "30",
+    max: "60",
     value: experience,
     onChange: e => setExperience(+e.target.value),
     className: "qroi-exp-slider"
-  }))), /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-num-input sm"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    min: "0",
+    max: "60",
+    value: experience,
+    onChange: e => setExperience(clamp(+e.target.value || 0, 0, 60))
+  }), /*#__PURE__*/React.createElement("small", null, "年"))))), /*#__PURE__*/React.createElement("div", {
     className: "qroi-pfield qroi-pfield-wide"
-  }, /*#__PURE__*/React.createElement("label", null, "特定の分野に絞りたい場合"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("label", null, "特定の分野に絞りたい場合", /*#__PURE__*/React.createElement("span", {
+    className: "qroi-multi-hint"
+  }, "複数選択可")), /*#__PURE__*/React.createElement("div", {
     className: "qroi-catpills"
   }, /*#__PURE__*/React.createElement("button", {
-    className: `qroi-catpill ${filterCat === "" ? "sel" : ""}`,
-    onClick: () => setFilterCat("")
+    className: `qroi-catpill ${filterCats.length === 0 ? "sel" : ""}`,
+    onClick: () => setFilterCats([])
   }, "絞らない（全分野）"), CATEGORIES.map(c => /*#__PURE__*/React.createElement("button", {
     key: c,
-    className: `qroi-catpill ${filterCat === c ? "sel" : ""}`,
-    onClick: () => setFilterCat(c)
+    className: `qroi-catpill ${filterCats.includes(c) ? "sel" : ""}`,
+    onClick: () => togglePreFilter(c)
   }, c))))), /*#__PURE__*/React.createElement("div", {
     className: "qroi-form-actions"
   }, /*#__PURE__*/React.createElement("button", {
@@ -1464,13 +1560,13 @@ function QualROI() {
     className: "qroi-hero-eyebrow"
   }, "診断結果"), /*#__PURE__*/React.createElement("h2", null, "あなたへの推奨ルート"), /*#__PURE__*/React.createElement("p", {
     className: "qroi-results-sub"
-  }, /*#__PURE__*/React.createElement("strong", null, CHANGE_OPTIONS.find(c => c.id === change)?.label || "あなたの希望"), "を軸に、年収 ", /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("strong", null, changes.map(id => CHANGE_OPTIONS.find(c => c.id === id)?.label).filter(Boolean).join("・") || "あなたの希望"), "を軸に、年収 ", /*#__PURE__*/React.createElement("span", {
     className: "qroi-num"
   }, income), "万円（時給 ", /*#__PURE__*/React.createElement("span", {
     className: "qroi-num"
   }, hourlyWage.toLocaleString()), "円）・週 ", /*#__PURE__*/React.createElement("span", {
     className: "qroi-num"
-  }, weeklyHours), "時間 の条件で", filterCat ? `「${filterCat}」分野の資格` : `全${QUALIFICATIONS.length}資格`, "を5軸評価しました。", (industry || role) && /*#__PURE__*/React.createElement(React.Fragment, null, "\u3000", [industry, ROLES.includes(role) ? role : ""].filter(Boolean).join("・"), "の背景を反映済み。"), horizon && /*#__PURE__*/React.createElement(React.Fragment, null, "\u3000目標期限: ", HORIZON_OPTIONS.find(h => h.id === horizon)?.label, "。"))), /*#__PURE__*/React.createElement("button", {
+  }, weeklyHours), "時間 の条件で", filterCats.length > 0 ? `「${filterCats.join("・")}」分野の資格` : `全${QUALIFICATIONS.length}資格`, "を5軸評価しました。", (industry || role) && /*#__PURE__*/React.createElement(React.Fragment, null, "\u3000", [industry, ROLES.includes(role) ? role : ""].filter(Boolean).join("・"), "の背景を反映済み。"), horizon && /*#__PURE__*/React.createElement(React.Fragment, null, "\u3000目標期限: ", HORIZON_OPTIONS.find(h => h.id === horizon)?.label, "。"))), /*#__PURE__*/React.createElement("button", {
     className: "qroi-recalc",
     onClick: () => setStep(1)
   }, "条件を変更")), /*#__PURE__*/React.createElement("div", {
@@ -1528,7 +1624,7 @@ function QualROI() {
       className: "k"
     }, "学習期間"), /*#__PURE__*/React.createElement("span", {
       className: "v"
-    }, isFinite(r.months) ? `約${r.months.toFixed(1)}ヶ月` : "—")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+    }, isFinite(r.months) ? `約${Math.round(r.months)}ヶ月` : "—")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
       className: "k"
     }, "回収期間"), /*#__PURE__*/React.createElement("span", {
       className: "v"
@@ -1593,7 +1689,7 @@ function QualROI() {
       className: "c-net"
     }, yen(r.netReturn)), /*#__PURE__*/React.createElement("span", {
       className: "c-time"
-    }, isFinite(r.months) ? `${r.months.toFixed(1)}ヶ月` : "—"), /*#__PURE__*/React.createElement("span", {
+    }, isFinite(r.months) ? `${Math.round(r.months)}ヶ月` : "—"), /*#__PURE__*/React.createElement("span", {
       className: "c-act"
     }, "詳細 →"));
   })), /*#__PURE__*/React.createElement("p", {
@@ -1697,7 +1793,7 @@ function QualROI() {
     className: "qroi-tl-gain"
   }, /*#__PURE__*/React.createElement("span", null, "以降は純利益"))), /*#__PURE__*/React.createElement("p", {
     className: "qroi-tl-note"
-  }, "学習期間 約", isFinite(detailItem.r.months) ? detailItem.r.months.toFixed(1) : "—", "ヶ月（週", weeklyHours, "h）→ 取得後", isFinite(detailItem.r.payback) ? detailItem.r.payback.toFixed(1) : "—", "年で投資回収。")), /*#__PURE__*/React.createElement("div", {
+  }, "学習期間 約", isFinite(detailItem.r.months) ? Math.round(detailItem.r.months) : "—", "ヶ月（週", weeklyHours, "h）→ 取得後", isFinite(detailItem.r.payback) ? detailItem.r.payback.toFixed(1) : "—", "年で投資回収。")), /*#__PURE__*/React.createElement("div", {
     className: "qroi-request"
   }, /*#__PURE__*/React.createElement("h4", null, "資料を請求する"), /*#__PURE__*/React.createElement("p", {
     className: "qroi-request-note"
@@ -1721,11 +1817,133 @@ function QualROI() {
     className: "qroi-request-done"
   }, "✓ スクールサイトを新しいタブで開きました。お申込はそちらで完了できます。")), /*#__PURE__*/React.createElement("p", {
     className: "qroi-modal-disclaimer"
-  }, "※ 表示スクールは一例です。掲載は提携・推奨を示すものではありません。料金・講座内容は各公式サイトで最新情報をご確認ください。"))), /*#__PURE__*/React.createElement("footer", {
+  }, "※ 表示スクールは一例です。掲載は提携・推奨を示すものではありません。料金・講座内容は各公式サイトで最新情報をご確認ください。"))), step === 3 && /*#__PURE__*/React.createElement("section", {
+    className: "qroi-corp"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "qroi-corp-back",
+    onClick: () => {
+      setStep(0);
+      setCorpSent(false);
+    }
+  }, "← ホームに戻る"), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-hero"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "qroi-hero-eyebrow"
+  }, "For Partners"), /*#__PURE__*/React.createElement("h2", null, "資格スクール・教育事業者の皆様へ"), /*#__PURE__*/React.createElement("p", {
+    className: "qroi-corp-lead"
+  }, "「時価 JIKA」は、学習にかかる時間を機会費用として可視化し、投資対効果の高い資格を利用者にご提案するサービスです。 月間の診断利用者に対し、資格ごとの資料請求先として貴社の講座をご案内できます。")), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-points"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-point"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "qroi-corp-pnum"
+  }, "01"), /*#__PURE__*/React.createElement("strong", null, "意欲の高い利用者層"), /*#__PURE__*/React.createElement("span", null, "年収・学習時間を入力し、投資判断として資格取得を検討している層に届きます。")), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-point"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "qroi-corp-pnum"
+  }, "02"), /*#__PURE__*/React.createElement("strong", null, "資格単位でのマッチング"), /*#__PURE__*/React.createElement("span", null, "診断結果の資格詳細から、関連講座として貴社サイトへ自然にご案内します。")), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-point"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "qroi-corp-pnum"
+  }, "03"), /*#__PURE__*/React.createElement("strong", null, "掲載は無料からご相談"), /*#__PURE__*/React.createElement("span", null, "掲載形態・送客条件はご要望に応じて柔軟に設計します。まずはお気軽にご連絡ください。"))), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-form-wrap"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-form-head"
+  }, /*#__PURE__*/React.createElement("h3", null, "資料請求先としての掲載を希望する"), /*#__PURE__*/React.createElement("p", null, "下記フォームにご記入のうえ送信してください。お使いのメールソフトが起動します。担当者より折り返しご連絡いたします。")), !corpSent ? /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-form"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-row"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-field"
+  }, /*#__PURE__*/React.createElement("label", null, "企業・団体名 ", /*#__PURE__*/React.createElement("span", {
+    className: "qroi-req-mini"
+  }, "必須")), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: corp.company,
+    placeholder: "例）株式会社〇〇アカデミー",
+    onChange: e => setCorp({
+      ...corp,
+      company: e.target.value
+    })
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-field"
+  }, /*#__PURE__*/React.createElement("label", null, "ご担当者名 ", /*#__PURE__*/React.createElement("span", {
+    className: "qroi-req-mini"
+  }, "必須")), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: corp.name,
+    placeholder: "例）山田 太郎",
+    onChange: e => setCorp({
+      ...corp,
+      name: e.target.value
+    })
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-row"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-field"
+  }, /*#__PURE__*/React.createElement("label", null, "ご連絡先メールアドレス ", /*#__PURE__*/React.createElement("span", {
+    className: "qroi-req-mini"
+  }, "必須")), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    value: corp.email,
+    placeholder: "例）contact@example.jp",
+    onChange: e => setCorp({
+      ...corp,
+      email: e.target.value
+    })
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-field"
+  }, /*#__PURE__*/React.createElement("label", null, "掲載をご希望の資格・講座"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: corp.qual,
+    placeholder: "例）日商簿記、宅建 など",
+    onChange: e => setCorp({
+      ...corp,
+      qual: e.target.value
+    })
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-field"
+  }, /*#__PURE__*/React.createElement("label", null, "お問い合わせ内容 ", /*#__PURE__*/React.createElement("span", {
+    className: "qroi-req-mini"
+  }, "必須")), /*#__PURE__*/React.createElement("textarea", {
+    rows: "5",
+    value: corp.message,
+    placeholder: "掲載のご希望内容、ご質問などをご記入ください。",
+    onChange: e => setCorp({
+      ...corp,
+      message: e.target.value
+    })
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-actions"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "qroi-corp-privacy"
+  }, "送信内容は掲載のご相談のみに利用します。"), /*#__PURE__*/React.createElement("button", {
+    className: `qroi-cta ${!corpValid ? "disabled" : ""}`,
+    onClick: submitCorp,
+    disabled: !corpValid
+  }, "この内容で連絡する", /*#__PURE__*/React.createElement("span", {
+    className: "qroi-cta-arrow"
+  }, "→")))) : /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-done"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-done-mark"
+  }, "✓"), /*#__PURE__*/React.createElement("h4", null, "メールソフトを起動しました"), /*#__PURE__*/React.createElement("p", null, "内容をご確認のうえ送信してください。メールソフトが起動しない場合は、 下記アドレス宛に直接ご連絡いただけます。"), /*#__PURE__*/React.createElement("div", {
+    className: "qroi-corp-mail"
+  }, "partners@jika-example.jp"), /*#__PURE__*/React.createElement("button", {
+    className: "qroi-corp-back-btn",
+    onClick: () => {
+      setCorpSent(false);
+    }
+  }, "フォームに戻る"))), /*#__PURE__*/React.createElement("p", {
+    className: "qroi-disclaimer center"
+  }, "※ 本ページは掲載に関するお問い合わせ窓口です。記載のメールアドレスはデモ用のため、実運用時に貴社の窓口へ差し替えてください。")), /*#__PURE__*/React.createElement("footer", {
     className: "qroi-footer"
   }, /*#__PURE__*/React.createElement("span", null, "時価 JIKA"), /*#__PURE__*/React.createElement("span", {
     className: "qroi-footer-dim"
-  }, "学習を、感覚でなく数字で選ぶ。")));
+  }, "学習を、感覚でなく数字で選ぶ。"), step !== 3 && /*#__PURE__*/React.createElement("button", {
+    className: "qroi-footer-corp",
+    onClick: () => setStep(3)
+  }, "企業の方はこちら →")));
 }
 
 /* ============================================================ */
@@ -1850,6 +2068,16 @@ const CSS = `
 }
 .qroi-slider-val{font-family:var(--num);font-size:25px;font-weight:600;color:var(--teal);min-width:88px;text-align:right;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
 .qroi-slider-val small{font-size:12px;font-family:var(--sans);color:var(--ink-2);margin-left:4px;font-weight:400;}
+.qroi-num-input{display:flex;align-items:baseline;gap:4px;flex:none;}
+.qroi-num-input input[type=number]{
+  width:72px;font-family:var(--num);font-size:23px;font-weight:600;color:var(--teal);
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;text-align:right;
+  border:none;border-bottom:2px solid var(--line);background:transparent;
+  padding:2px 4px;outline:none;transition:border-color .15s;-moz-appearance:textfield;
+}
+.qroi-num-input input[type=number]:focus{border-bottom-color:var(--teal);}
+.qroi-num-input.sm input[type=number]{width:52px;font-size:19px;}
+.qroi-num-input small{font-size:12px;color:var(--ink-2);font-weight:400;}
 .qroi-field-note{font-size:11.5px;color:#a39b8c;margin:14px 0 0;line-height:1.6;}
 .qroi-field-note strong{color:var(--brass);font-weight:700;}
 .qroi-chips,.qroi-goals{display:flex;flex-wrap:wrap;gap:9px;}
@@ -1872,15 +2100,20 @@ const CSS = `
   padding:16px 18px;cursor:pointer;font-family:var(--sans);transition:.16s;
 }
 .qroi-change:hover{border-color:var(--teal);background:var(--paper-2);}
-.qroi-change-radio{
-  width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line);
+.qroi-change-check{
+  width:18px;height:18px;border-radius:5px;border:1.5px solid var(--line);
   flex:none;margin-top:2px;position:relative;transition:.15s;
 }
 .qroi-change-body{display:flex;flex-direction:column;gap:4px;}
 .qroi-change-body strong{font-size:14px;font-weight:700;color:var(--ink);}
 .qroi-change-body span{font-size:11.5px;color:var(--ink-2);line-height:1.55;}
 .qroi-change.sel{border-color:var(--teal);background:rgba(31,94,87,.06);box-shadow:0 0 0 1px var(--teal);}
-.qroi-change.sel .qroi-change-radio{border-color:var(--teal);border-width:5px;}
+.qroi-change.sel .qroi-change-check{background:var(--teal);border-color:var(--teal);}
+.qroi-change.sel .qroi-change-check::after{
+  content:"";position:absolute;left:5px;top:1px;width:5px;height:10px;
+  border:solid var(--paper-2);border-width:0 2px 2px 0;transform:rotate(45deg);
+}
+.qroi-multi-hint{font-size:10px;letter-spacing:.06em;color:var(--teal);background:rgba(31,94,87,.08);padding:2px 8px;border-radius:5px;margin-left:10px;vertical-align:middle;font-weight:700;}
 .qroi-horizons{display:flex;flex-wrap:wrap;gap:9px;}
 .qroi-horizon{
   background:var(--paper);border:1px solid var(--line);border-radius:9px;
@@ -2128,6 +2361,78 @@ const CSS = `
 }
 .qroi-footer span:first-child{font-family:var(--serif);font-weight:700;letter-spacing:.04em;}
 .qroi-footer-dim{color:#a39b8c;}
+.qroi-footer-corp{
+  margin-left:auto;background:none;border:none;color:var(--teal);font-size:13px;font-weight:600;
+  cursor:pointer;font-family:var(--sans);padding:6px 4px;transition:color .15s;
+}
+.qroi-footer-corp:hover{color:var(--ink);}
+
+/* Hero actions + ghost button */
+.qroi-hero-actions{display:flex;flex-wrap:wrap;gap:14px;align-items:center;}
+.qroi-cta-ghost{
+  display:inline-flex;align-items:center;gap:10px;
+  background:transparent;color:var(--ink);font-size:15px;font-weight:600;font-family:var(--sans);
+  border:1.5px solid var(--line);border-radius:11px;padding:15px 26px;cursor:pointer;transition:.18s;
+}
+.qroi-cta-ghost:hover{border-color:var(--teal);color:var(--teal);background:var(--paper-2);}
+.qroi-cta-ghost .qroi-cta-arrow{transition:transform .2s;}
+.qroi-cta-ghost:hover .qroi-cta-arrow{transform:translateX(4px);}
+
+/* ===== Corporate / Partner page ===== */
+.qroi-corp{max-width:920px;margin:0 auto;padding:clamp(32px,6vw,56px) clamp(20px,5vw,56px) 70px;}
+.qroi-corp-back{
+  background:none;border:none;color:var(--ink-2);font-size:14px;cursor:pointer;
+  font-family:var(--sans);padding:6px 4px;margin-bottom:28px;transition:color .15s;
+}
+.qroi-corp-back:hover{color:var(--ink);}
+.qroi-corp-hero{margin-bottom:42px;}
+.qroi-corp-hero h2{font-family:var(--serif);font-size:clamp(28px,4.5vw,42px);font-weight:700;margin:0 0 18px;line-height:1.15;}
+.qroi-corp-lead{font-size:clamp(14px,1.8vw,16px);color:var(--ink-2);max-width:680px;line-height:1.75;margin:0;}
+.qroi-corp-points{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:46px;}
+.qroi-corp-point{
+  background:var(--paper-2);border:1px solid var(--line);border-radius:13px;padding:24px 22px;
+  display:flex;flex-direction:column;gap:9px;box-shadow:var(--shadow);
+}
+.qroi-corp-pnum{font-family:var(--num);font-size:13px;font-weight:600;color:var(--brass);letter-spacing:.05em;}
+.qroi-corp-point strong{font-size:15px;font-weight:700;color:var(--ink);}
+.qroi-corp-point span:last-child{font-size:12.5px;color:var(--ink-2);line-height:1.65;}
+.qroi-corp-form-wrap{
+  background:var(--paper-2);border:1px solid var(--brass);border-radius:16px;
+  padding:clamp(26px,4vw,38px);box-shadow:0 4px 14px rgba(168,132,63,.1);
+}
+.qroi-corp-form-head{margin-bottom:26px;}
+.qroi-corp-form-head h3{font-family:var(--serif);font-size:23px;font-weight:700;margin:0 0 10px;color:var(--ink);}
+.qroi-corp-form-head p{font-size:13.5px;color:var(--ink-2);margin:0;line-height:1.7;}
+.qroi-corp-form{display:flex;flex-direction:column;gap:18px;}
+.qroi-corp-row{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.qroi-corp-field{display:flex;flex-direction:column;gap:8px;}
+.qroi-corp-field label{font-size:12.5px;font-weight:700;color:var(--ink);}
+.qroi-req-mini{font-size:9.5px;letter-spacing:.05em;background:var(--brass);color:var(--paper-2);padding:1px 7px;border-radius:4px;margin-left:7px;font-weight:700;vertical-align:middle;}
+.qroi-corp-field input,.qroi-corp-field textarea{
+  border:1px solid var(--line);border-radius:9px;background:var(--paper);
+  padding:12px 14px;font-size:14px;color:var(--ink);font-family:var(--sans);outline:none;transition:border-color .15s;
+}
+.qroi-corp-field input:focus,.qroi-corp-field textarea:focus{border-color:var(--teal);}
+.qroi-corp-field textarea{resize:vertical;line-height:1.6;}
+.qroi-corp-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:6px;flex-wrap:wrap;}
+.qroi-corp-privacy{font-size:11.5px;color:#a39b8c;margin:0;}
+.qroi-corp-done{text-align:center;padding:20px 0;}
+.qroi-corp-done-mark{
+  width:56px;height:56px;border-radius:50%;background:rgba(31,107,79,.1);color:var(--pos);
+  display:grid;place-items:center;font-size:28px;margin:0 auto 18px;
+}
+.qroi-corp-done h4{font-family:var(--serif);font-size:21px;font-weight:700;margin:0 0 12px;color:var(--ink);}
+.qroi-corp-done p{font-size:13.5px;color:var(--ink-2);max-width:440px;margin:0 auto 18px;line-height:1.7;}
+.qroi-corp-mail{
+  font-family:var(--num);font-size:16px;color:var(--teal);font-weight:600;
+  background:var(--paper);border:1px solid var(--line);border-radius:9px;
+  padding:12px 20px;display:inline-block;margin-bottom:22px;
+}
+.qroi-corp-back-btn{
+  display:block;margin:0 auto;background:none;border:1px solid var(--line);border-radius:9px;
+  padding:10px 22px;font-size:13px;color:var(--ink);cursor:pointer;font-family:var(--sans);font-weight:600;transition:.15s;
+}
+.qroi-corp-back-btn:hover{border-color:var(--ink);}
 
 /* Responsive */
 @media(max-width:780px){
@@ -2144,6 +2449,11 @@ const CSS = `
   .qroi-results-head{flex-direction:column;}
   .qroi-modal-roi{flex-direction:column;align-items:flex-start;gap:16px;}
   .qroi-modal-roi-meta{text-align:left;flex-direction:row;gap:24px;}
+  .qroi-corp-points{grid-template-columns:1fr;}
+  .qroi-corp-row{grid-template-columns:1fr;}
+  .qroi-hero-actions{flex-direction:column;align-items:stretch;}
+  .qroi-footer{flex-wrap:wrap;}
+  .qroi-footer-corp{margin-left:0;width:100%;text-align:left;}
 }
 `;
 (function () {
